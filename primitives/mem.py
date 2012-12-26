@@ -90,8 +90,24 @@ class CPUMem:
         0
         >>> print m2.getRaw(2)
         42
+        >>> m3 = CPUMem(10)
+        >>> m3.subMemory(m, 0)
+        >>> print m3.get(0)
+        100
+        >>> print m3.get(1)
+        0
+        >>> print m3.get(9)
+        0
+        >>> print m3.get(10)
+        0
+        >>> print m3.get(11) #doctest: +ELLIPSIS
+        Traceback (most recent call last):
+        ...
+        IndexError: Sub memory size limit hit!
         """
         if self._submem is not None:
+            if self._size > 0 and int_pos > self._internal_size:
+                raise IndexError("Sub memory size limit hit!")
             return self._submem.setRaw(self._sub_int_pos + int_pos, data)
         if self._size == 0:
             self.enlarge(int_pos * self._wordsize)
@@ -108,6 +124,8 @@ class CPUMem:
         @returns Data
         """
         if self._submem is not None:
+            if self._size > 0 and int_pos > self._internal_size:
+                raise IndexError("Sub memory size limit hit!")
             return self._submem.getRaw(self._sub_int_pos + int_pos)
         if self._internal_size < int_pos:
             raise IndexError("Given internal memory position is invalid: %s, max size: %s" % (int_pos, self._internal_size))
@@ -161,6 +179,8 @@ class CPUMem:
         99
         """
         if self._submem is not None:
+            if self._size > 0 and pos > self._size:
+                raise IndexError("Sub memory size limit hit!")
             return self._submem.set(self._sub_pos + pos, data, size)
 
         if self._size == 0:
@@ -199,6 +219,8 @@ class CPUMem:
         42
         """
         if self._submem is not None:
+            if self._size > 0 and pos > self._size:
+                raise IndexError("Sub memory size limit hit!")
             return self._submem.get(self._sub_pos + pos, size)
 
         if self._size < pos:
