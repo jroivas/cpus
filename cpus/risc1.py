@@ -5,6 +5,7 @@ class RISC1:
         0x02: 'STOREi',
         0x03: 'LOAD',
         0x04: 'STORE',
+        0x05: 'MOV',
         0x10: 'ADD',
         0x11: 'SUB',
         0xFF: 'STOP'
@@ -34,10 +35,10 @@ class RISC1:
         imm = (inst >> 8)
         return (opcode, imm)
 
-    def loadi(self, imm):
+    def load(self, imm):
         return self.mem.getRaw(imm)
 
-    def storei(self, imm, data):
+    def store(self, imm, data):
         self.mem.setRaw(imm, data)
 
     def solveRegs(self, datas):
@@ -64,11 +65,14 @@ class RISC1:
         (rx, ry, imm) = self.solveRegNames(datas)
         xval = 0
         yval = 0
+        immval = 0
         if rx is not None:
-            xval = self.regs[xval]
+            xval = self.regs['r%s' % xval]
         if ry is not None:
-            yval = self.regs[yval]
-        return (xval, yval, imm)
+            yval = self.regs['r%s' % yval]
+        if imm is not None:
+            immval = imm
+        return (xval, yval, immval)
 
     def dump(self):
         print ("PC: %s" % (self.pc))
@@ -85,9 +89,18 @@ class RISC1:
             if op == self.rev_opcodes['STOP']:
                 break
             elif op == self.rev_opcodes['LOADi']:
-                self.regs['r0'] = self.loadi(imm)
+                self.regs['r0'] = self.load(imm)
             elif op == self.rev_opcodes['STOREi']:
-                 self.storei(imm, self.regs['r0'])
+                 self.store(imm, self.regs['r0'])
+            elif op == self.rev_opcodes['MOV']:
+                (rx, ry, imm) = self.solveRegNames(imm)
+                if rx is not None:
+                    src = 0            
+                    if ry is not None:
+                        src = self.regs[ry]
+                    if imm is not None:
+                        src += imm
+                    self.regs[rx] = src
             elif op == self.rev_opcodes['ADD']:
                 self.regs['r0'] += self.alu.add(*self.solveValues(imm))
         self.dump()
@@ -104,6 +117,7 @@ rx, ry, imm coding = iiyyxx
 0x02 STORE IMM, r0
 0x03 LOAD rx, r0
 0x04 STORE rx, r0
+0x05 MOV rx, ry, imm
 
 0x10 ADD rx, ry, imm
 0x11 SUB rx, ry, imm
