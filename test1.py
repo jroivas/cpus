@@ -30,6 +30,8 @@ def program(mem):
     index +=1
     mem.setRaw(index, genInstruction(0x05, genReg(2, -1, 16)) )
     index +=1
+    mem.setRaw(index, genInstruction(0x06, genReg(2, 1, 0)) )
+    index +=1
     mem.setRaw(index, genInstruction(0xFF, 0) )
     index +=1
 

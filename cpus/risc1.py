@@ -6,6 +6,7 @@ class RISC1:
         0x03: 'LOAD',
         0x04: 'STORE',
         0x05: 'MOV',
+        0x06: 'SWP',
         0x10: 'ADD',
         0x11: 'SUB',
         0xFF: 'STOP'
@@ -85,13 +86,33 @@ class RISC1:
         while True:
             inst = self.fetch()
             (op, imm) = self.decode(inst)
-            #print ("[PC %s] %s %s" % (self.pc, op, imm))
+            print ("[PC %s] %s %s" % (self.pc, op, self.solveRegNames(imm)))
             if op == self.rev_opcodes['STOP']:
                 break
             elif op == self.rev_opcodes['LOADi']:
                 self.regs['r0'] = self.load(imm)
             elif op == self.rev_opcodes['STOREi']:
                  self.store(imm, self.regs['r0'])
+            elif op == self.rev_opcodes['LOAD']:
+                (rx, ry, imm) = self.solveRegNames(imm)
+                rimm = 0
+                if rx is not None:
+                    rimm = self.regs[rx]
+                if imm is not None:
+                    rimm += imm
+                if ry is None:
+                    ry = 'r0'
+                self.regs[ry] = self.load(rimm)
+            elif op == self.rev_opcodes['STORE']:
+                (rx, ry, imm) = self.solveRegNames(imm)
+                rimm = 0
+                if rx is not None:
+                    rimm = self.regs[rx]
+                if imm is not None:
+                    rimm += imm
+                if ry is None:
+                    ry = 'r0'
+                self.store(rimm, self.regs[ry])
             elif op == self.rev_opcodes['MOV']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 if rx is not None:
@@ -101,6 +122,14 @@ class RISC1:
                     if imm is not None:
                         src += imm
                     self.regs[rx] = src
+            elif op == self.rev_opcodes['SWP']:
+                (rx, ry, imm) = self.solveRegNames(imm)
+                if imm is None:
+                    imm = 0
+                if rx is not None and ry is not None:
+                    tmp = self.regs[rx]
+                    self.regs[rx] = self.regs[ry] + imm
+                    self.regs[ry] = tmp + imm
             elif op == self.rev_opcodes['ADD']:
                 self.regs['r0'] += self.alu.add(*self.solveValues(imm))
         self.dump()
@@ -113,11 +142,18 @@ rx, ry      coding = 00yyxx
 rx, ry, imm coding = iiyyxx
 
 0x00 NOP
-0x01 LOAD IMM, r0
-0x02 STORE IMM, r0
-0x03 LOAD rx, r0
-0x04 STORE rx, r0
+0x01 LOAD IMM
+  Load value from IMM memory location to r0
+0x02 STORE IMM
+  Store value to IMM memory location from r0
+0x03 LOAD rx, ry, imm
+  Load value from (rx+imm) memory location to ry/r0
+0x04 STORE rx, ry, imm
+  Store value to (rx+imm) memory location from ry/r0
 0x05 MOV rx, ry, imm
+  Move value of register ry to register rx, add imm
+0x06 SWP rx, ry, imm
+  Swap value of registers ry and rx, add imm to both
 
 0x10 ADD rx, ry, imm
 0x11 SUB rx, ry, imm
@@ -131,4 +167,5 @@ rx, ry, imm coding = iiyyxx
 0x19 XOR rx, ry
 0x20 NOT rx
 0xFF END
+  End execution
 """
