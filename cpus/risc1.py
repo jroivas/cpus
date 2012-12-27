@@ -71,6 +71,176 @@ class RISC1:
             if val != 0:
                 print ("r%x: %s" % (num, val))
 
+    def handleStoreLoad(self, op, imm):
+        handled = False
+        if op == self.opcodes.rev_opcodes['LOADi']:
+            self.regs['r0'] = self.load(imm)
+            handled = True
+        elif op == self.opcodes.rev_opcodes['STOREi']:
+            self.store(imm, self.regs['r0'])
+            handled = True
+        elif op == self.opcodes.rev_opcodes['LOAD']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            rimm = 0
+            if rx is not None:
+                rimm = self.regs[rx]
+            if imm is not None:
+                rimm += imm
+            if ry is None:
+                ry = 'r0'
+            self.regs[ry] = self.load(rimm)
+            handled = True
+        elif op == self.opcodes.rev_opcodes['STORE']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            rimm = 0
+            if rx is not None:
+                rimm = self.regs[rx]
+            if imm is not None:
+                rimm += imm
+            if ry is None:
+                ry = 'r0'
+            self.store(rimm, self.regs[ry])
+            handled = True
+
+        return handled
+
+    def handleMov(self, op, imm):
+        handled = False
+        if op == self.opcodes.rev_opcodes['MOV']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            if rx is not None:
+                src = 0            
+                if ry is not None:
+                    src = self.regs[ry]
+                if imm is not None:
+                    src += imm
+                self.regs[rx] = src
+                handled = True
+        elif op == self.opcodes.rev_opcodes['MOVi']:
+            self.regs['r0'] = imm
+            handled = True
+        elif op == self.opcodes.rev_opcodes['SWP']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            if imm is None:
+                imm = 0
+            if rx is not None and ry is not None:
+                tmp = self.regs[rx]
+                self.regs[rx] = self.regs[ry] + imm
+                self.regs[ry] = tmp + imm
+                handled = True
+
+        return handled
+
+    def handleBasicALU(self, op, imm):
+        handled = False
+        if op == self.opcodes.rev_opcodes['ADD']:
+            self.regs['r0'] += self.alu.add(*self.solveValues(imm))
+            handled = True
+        elif op == self.opcodes.rev_opcodes['SUB']:
+            self.regs['r0'] += self.alu.sub(*self.solveValues(imm))
+            handled = True
+        elif op == self.opcodes.rev_opcodes['MUL']:
+            self.regs['r0'] += self.alu.mul(*self.solveValues(imm))
+            handled = True
+        elif op == self.opcodes.rev_opcodes['DIV']:
+            self.regs['r0'] += self.alu.div(*self.solveValues(imm))
+            handled = True
+        elif op == self.opcodes.rev_opcodes['MOD']:
+            self.regs['r0'] += self.alu.mod(*self.solveValues(imm))
+            handled = True
+
+        return handled
+
+    def handleBitwiseALU(self, op, imm):
+        handled = False
+        if op == self.opcodes.rev_opcodes['SHL']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            if rx is not None and imm is not None:
+                if ry is not None:
+                    target = ry
+                else:
+                    target = rx
+                self.regs[target] = self.alu.b_shl(self.regs[rx], imm)
+                handled = True
+        elif op == self.opcodes.rev_opcodes['SHR']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            if rx is not None and imm is not None:
+                if ry is not None:
+                    target = ry
+                else:
+                    target = rx
+                self.regs[target] = self.alu.b_shr(self.regs[rx], imm)
+                handled = True
+        elif op == self.opcodes.rev_opcodes['AND']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            if rx is not None and ry is not None:
+                self.regs['r0'] = self.alu.b_and(self.regs[rx], self.regs[ry])
+                handled = True
+        elif op == self.opcodes.rev_opcodes['OR']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            if rx is not None and ry is not None:
+                self.regs['r0'] = self.alu.b_or(self.regs[rx], self.regs[ry])
+                handled = True
+        elif op == self.opcodes.rev_opcodes['XOR']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            if rx is not None and ry is not None:
+                self.regs['r0'] = self.alu.b_xor(self.regs[rx], self.regs[ry])
+                handled = True
+        elif op == self.opcodes.rev_opcodes['NOT']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            if rx is not None:
+                if ry is not None:
+                    target = ry
+                else:
+                    target = rx
+                self.regs[target] = self.alu.b_not(rx)
+                handled = True
+
+        return handled
+
+    def handleBranching(self, op, imm):
+        handled = False
+
+        if op == self.opcodes.rev_opcodes['B']:
+            print "Branching from %s" % (self.pc)
+            self.pc = imm
+            print "Branching to %s" % (imm)
+            handled = True
+        elif op == self.opcodes.rev_opcodes['BZ']:
+            if self.regs['r0'] == 0:
+                self.pc = imm
+            handled = True
+        elif op == self.opcodes.rev_opcodes['BNZ']:
+            if self.regs['r0'] != 0:
+                self.pc = imm
+            handled = True
+        elif op == self.opcodes.rev_opcodes['BE']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            if rx is not None and ry is not None and imm is not None:
+                if self.regs[rx] == self.regs[ry]:
+                    self.pc += imm
+                handled = True
+        elif op == self.opcodes.rev_opcodes['BNE']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            if rx is not None and ry is not None and imm is not None:
+                if self.regs[rx] != self.regs[ry]:
+                    self.pc += imm
+                handled = True
+        elif op == self.opcodes.rev_opcodes['BLE']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            im = 0
+            if imm is not None:
+                im = imm
+            if rx is not None and ry is not None:
+                if self.regs[ry] == 0:
+                    self.pc = self.regs[rx] + im
+                handled = True
+
+        return handled
+
+    def illegalInstruction(self, op, imm):
+        raise ValueError('Illegal instruction: %s  (%s)' % (op, imm))
+
     def start(self):
         while True:
             inst = self.fetch()
@@ -79,126 +249,30 @@ class RISC1:
                 print ("[PC %s] %s %s" % (self.pc, op, imm))
             else:
                 print ("[PC %s] %s %s" % (self.pc, op, self.solveRegNames(imm)))
+
             if op == self.opcodes.rev_opcodes['STOP']:
                 break
-            elif op == self.opcodes.rev_opcodes['LOADi']:
-                self.regs['r0'] = self.load(imm)
-            elif op == self.opcodes.rev_opcodes['STOREi']:
-                 self.store(imm, self.regs['r0'])
-            elif op == self.opcodes.rev_opcodes['LOAD']:
-                (rx, ry, imm) = self.solveRegNames(imm)
-                rimm = 0
-                if rx is not None:
-                    rimm = self.regs[rx]
-                if imm is not None:
-                    rimm += imm
-                if ry is None:
-                    ry = 'r0'
-                self.regs[ry] = self.load(rimm)
-            elif op == self.opcodes.rev_opcodes['STORE']:
-                (rx, ry, imm) = self.solveRegNames(imm)
-                rimm = 0
-                if rx is not None:
-                    rimm = self.regs[rx]
-                if imm is not None:
-                    rimm += imm
-                if ry is None:
-                    ry = 'r0'
-                self.store(rimm, self.regs[ry])
-            elif op == self.opcodes.rev_opcodes['MOV']:
-                (rx, ry, imm) = self.solveRegNames(imm)
-                if rx is not None:
-                    src = 0            
-                    if ry is not None:
-                        src = self.regs[ry]
-                    if imm is not None:
-                        src += imm
-                    self.regs[rx] = src
-            elif op == self.opcodes.rev_opcodes['MOVi']:
-                self.regs['r0'] = imm
-            elif op == self.opcodes.rev_opcodes['SWP']:
-                (rx, ry, imm) = self.solveRegNames(imm)
-                if imm is None:
-                    imm = 0
-                if rx is not None and ry is not None:
-                    tmp = self.regs[rx]
-                    self.regs[rx] = self.regs[ry] + imm
-                    self.regs[ry] = tmp + imm
-            elif op == self.opcodes.rev_opcodes['ADD']:
-                self.regs['r0'] += self.alu.add(*self.solveValues(imm))
-            elif op == self.opcodes.rev_opcodes['SUB']:
-                self.regs['r0'] += self.alu.sub(*self.solveValues(imm))
-            elif op == self.opcodes.rev_opcodes['MUL']:
-                self.regs['r0'] += self.alu.mul(*self.solveValues(imm))
-            elif op == self.opcodes.rev_opcodes['DIV']:
-                self.regs['r0'] += self.alu.div(*self.solveValues(imm))
-            elif op == self.opcodes.rev_opcodes['MOD']:
-                self.regs['r0'] += self.alu.mod(*self.solveValues(imm))
-            elif op == self.opcodes.rev_opcodes['SHL']:
-                (rx, ry, imm) = self.solveRegNames(imm)
-                if rx is not None and imm is not None:
-                    if ry is not None:
-                        target = ry
-                    else:
-                        target = rx
-                    self.regs[target] = self.alu.b_shl(self.regs[rx], imm)
-            elif op == self.opcodes.rev_opcodes['SHR']:
-                (rx, ry, imm) = self.solveRegNames(imm)
-                if rx is not None and imm is not None:
-                    if ry is not None:
-                        target = ry
-                    else:
-                        target = rx
-                    self.regs[target] = self.alu.b_shr(self.regs[rx], imm)
-            elif op == self.opcodes.rev_opcodes['AND']:
-                (rx, ry, imm) = self.solveRegNames(imm)
-                if rx is not None and ry is not None:
-                    self.regs['r0'] = self.alu.b_and(self.regs[rx], self.regs[ry])
-            elif op == self.opcodes.rev_opcodes['OR']:
-                (rx, ry, imm) = self.solveRegNames(imm)
-                if rx is not None and ry is not None:
-                    self.regs['r0'] = self.alu.b_or(self.regs[rx], self.regs[ry])
-            elif op == self.opcodes.rev_opcodes['XOR']:
-                (rx, ry, imm) = self.solveRegNames(imm)
-                if rx is not None and ry is not None:
-                    self.regs['r0'] = self.alu.b_xor(self.regs[rx], self.regs[ry])
-            elif op == self.opcodes.rev_opcodes['NOT']:
-                (rx, ry, imm) = self.solveRegNames(imm)
-                if rx is not None:
-                    if ry is not None:
-                        target = ry
-                    else:
-                        target = rx
-                    self.regs[target] = self.alu.b_not(rx)
+
+            ## Store/Load
+            handled = self.handleStoreLoad(op, imm)
+
+            ## MOV/SWP
+            if not handled:
+                handled = self.handleMov(op, imm)
+
+            ## ALU
+            if not handled:
+                handled = self.handleBasicALU(op, imm)
+            if not handled:
+                handled = self.handleBitwiseALU(op, imm)
+
             ## Branching
-            elif op == self.opcodes.rev_opcodes['B']:
-                print "Brancing from %s" % (self.pc)
-                self.pc = imm
-                print "Brancing to %s" % (imm)
-            elif op == self.opcodes.rev_opcodes['BZ']:
-                if self.regs['r0'] == 0:
-                    self.pc = imm
-            elif op == self.opcodes.rev_opcodes['BNZ']:
-                if self.regs['r0'] != 0:
-                    self.pc = imm
-            elif op == self.opcodes.rev_opcodes['BE']:
-                (rx, ry, imm) = self.solveRegNames(imm)
-                if rx is not None and ry is not None and imm is not None:
-                    if self.regs[rx] == self.regs[ry]:
-                        self.pc += imm
-            elif op == self.opcodes.rev_opcodes['BNE']:
-                (rx, ry, imm) = self.solveRegNames(imm)
-                if rx is not None and ry is not None and imm is not None:
-                    if self.regs[rx] != self.regs[ry]:
-                        self.pc += imm
-            elif op == self.opcodes.rev_opcodes['BLE']:
-                (rx, ry, imm) = self.solveRegNames(imm)
-                im = 0
-                if imm is not None:
-                    im = imm
-                if rx is not None and ry is not None:
-                    if self.regs[ry] == 0:
-                        self.pc = self.regs[rx] + im
+            if not handled:
+                handled = self.handleBranching(op, imm)
+
+            if not handled:
+                self.illegalInstruction(op, imm)
+
         self.dump()
 
 """ Instruction set
