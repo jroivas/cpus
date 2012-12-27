@@ -134,6 +134,7 @@ class Assembly:
         if lab is not None:
             return lab['pos']
 
+        lab = val
         try:
             if '0x' in lab:
                 imm = int(lab, 16)
@@ -177,8 +178,8 @@ class Assembly:
         if tmp:
             i = tmp.pop()
 
-        x = (x+1) & 0xFF
-        y = ((y+1) & 0xFF) << 8
+        x = x & 0xFF
+        y = (y & 0xFF) << 8
         i = (i & 0xFF) << 16
         return (x | y | i)
 
@@ -194,7 +195,6 @@ class Assembly:
                 imm = self.generateRegisters(pars)
             else:
                 imm = pars
-            #print '%x' % inst, imm, pars
             imm = imm & 0xFFFFFF
             imm <<= 8
             bytecode.append(inst)
