@@ -14,6 +14,63 @@ class CPUMem:
         (self._internal_size, dummy) = self.calcInternal(size)
         self._submem = None
         self.reset()
+        self._specials = {}
+
+    def addSpecial(self, mem, handler_get, handler_set):
+        """ Add special handler for certain memory location
+        @param mem Memory location
+        @param handler_get Callback for get
+        @param handler_set Callback for set
+
+        >>> m = CPUMem(100)
+        >>> class TestIO:
+        ...  def __init__(self):
+        ...   self.vals = {}
+        ...  def dummy_get(self, pos):
+        ...   print "get at %s" % (pos)
+        ...   if pos in self.vals:
+        ...     return self.vals[pos]
+        ...   return 42
+        ...  def dummy_set(self, pos, a):
+        ...   print "set at %s, val %s" % (pos, a)
+        ...   self.vals[pos] = a
+        >>> myio = TestIO()
+        >>> m.addSpecial(10, myio.dummy_get, None)
+        >>> m.addSpecial(11, None, myio.dummy_set)
+        >>> m.addSpecial(12, myio.dummy_get, myio.dummy_set)
+        >>> print m.get(0)
+        0
+        >>> print m.get(10*4)
+        get at 10
+        42
+        >>> m.set(10*4, 55)
+        get at 10
+        >>> m.set(11*4, 6)
+        set at 11, val 6
+        >>> print m.get(11*4)
+        0
+        >>> print m.get(12*4)
+        get at 12
+        42
+        >>> m.set(12*4, 7)
+        get at 12
+        set at 12, val 7
+        >>> print m.get(12*4)
+        get at 12
+        7
+        >>> print m.get(13*4)
+        0
+        >>> m.set(13*4, 5)
+        >>> print m.get(13*4)
+        5
+        >>> m.addSpecial(12, myio.dummy_get, myio.dummy_set) #doctest: +ELLIPSIS
+        Traceback (most recent call last):
+        ...
+        ValueError: Special memory handler already registered to 12
+        """
+        if mem in self._specials:
+            raise ValueError("Special memory handler already registered to %s" % mem)
+        self._specials[mem] = (handler_get, handler_set)
 
     def subMemory(self, mem, pos):
         """ Define this as a submemory on other memory instance
@@ -22,7 +79,6 @@ class CPUMem:
         """
         self._submem = mem
         (self._sub_int_pos, dummy) = self.calcInternal(pos)
-        #self._sub_pos = self._sub_int_pos * self._wordsize
         self._sub_pos = pos
 
     def reset(self):
@@ -116,6 +172,11 @@ class CPUMem:
         if int_pos < 0:
             raise IndexError("Memory position needs to be positive number, got: %s" % (int_pos))
 
+        if int_pos in self._specials:
+            (hget, hset) = self._specials[int_pos]
+            if hset is not None:
+                return hset(int_pos, data)
+            return
         self._data[int_pos] = data
 
     def getRaw(self, int_pos):
@@ -131,6 +192,12 @@ class CPUMem:
             raise IndexError("Given internal memory position is invalid: %s, max size: %s" % (int_pos, self._internal_size))
         if int_pos < 0:
             raise IndexError("Memory position needs to be positive number, got: %s" % (int_pos))
+
+        if int_pos in self._specials:
+            (hget, hset) = self._specials[int_pos]
+            if hget is not None:
+                return hget(int_pos)
+            return 0
         return self._data[int_pos]
 
     def set(self, pos, data, size=0xFF):
@@ -193,7 +260,8 @@ class CPUMem:
         (int_pos, int_index) = self.calcInternal(pos)
         # Decrease because indexing is from 0, this is size
         int_pos -= 1
-        tmp = self._data[int_pos] 
+        tmp = self.getRaw(int_pos)
+        #tmp = self._data[int_pos] 
         data = data & size
 
         shifter = (int_index*8)
@@ -201,7 +269,8 @@ class CPUMem:
         data <<= shifter
         tmp = tmp & (~size)
         tmp = tmp | data
-        self._data[int_pos]  = tmp
+        self.setRaw(int_pos, tmp)
+        #self._data[int_pos]  = tmp
 
     def get(self, pos, size=0xFF):
         """ Get memory value
@@ -224,13 +293,17 @@ class CPUMem:
             return self._submem.get(self._sub_pos + pos, size)
 
         if self._size < pos:
+            #if self._size == 0:
+            #    return 0
             raise IndexError("Given memory position is invalid: %s, max size: %s" % (pos, self._size))
         if pos < 0:
             raise IndexError("Memory position needs to be positive number, got: %s" % (pos))
     
         (int_pos, int_index) = self.calcInternal(pos)
         int_pos -= 1
-        tmp = self._data[int_pos] 
+        #print int_pos
+        #tmp = self._data[int_pos] 
+        tmp = self.getRaw(int_pos)
         shifter = (int_index*8)
         size <<= shifter
         tmp = tmp & size
