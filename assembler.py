@@ -201,7 +201,7 @@ class Assembly:
             code.append(inst | imm)
             immcode = []
             imm >>= 8
-            for i in xrange(3):
+            for i in xrange(self.wordsize-1):
                 immcode.append(imm & 0xFF)
                 imm >>= 8
             bytecode += immcode

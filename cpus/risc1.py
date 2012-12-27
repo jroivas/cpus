@@ -241,14 +241,15 @@ class RISC1:
     def illegalInstruction(self, op, imm):
         raise ValueError('Illegal instruction: %s  (%s)' % (op, imm))
 
-    def start(self):
+    def start(self, verbose=False):
         while True:
             inst = self.fetch()
             (op, imm) = self.decode(inst)
-            if (op in self.opcodes.opcodes and self.opcodes.opcodes[op][-1] == 'i') or op == self.opcodes.rev_opcodes['B']:
-                print ("[PC %s] %s %s" % (self.pc, op, imm))
-            else:
-                print ("[PC %s] %s %s" % (self.pc, op, self.solveRegNames(imm)))
+            if verbose:
+                if (op in self.opcodes.opcodes and self.opcodes.opcodes[op][-1] == 'i') or op == self.opcodes.rev_opcodes['B']:
+                    print ("[PC %s] %s %s" % (self.pc, op, imm))
+                else:
+                    print ("[PC %s] %s %s" % (self.pc, op, self.solveRegNames(imm)))
 
             if op == self.opcodes.rev_opcodes['STOP']:
                 break
@@ -297,6 +298,20 @@ rx, ry, imm coding = iiyyxx
   Move imm to r0
 0x07 SWP rx, ry, imm
   Swap value of registers ry and rx, add imm to both
+0x0D MAP rx, ry, imm
+  MMU map page
+   rx = virtual address for page start
+   ry = hw address (needs to be aligned to proper page size)
+        Last 4 bits tells page size:
+        (0 = no mapping, 1 = 1k, 2=4k, 3=16k, 4=64k, 5=256k, 6=512k, 7=1M, 8=4M, 9=16M, a=64M, b=256M, c=512M)
+0x0E START rx, ry, imm
+  Start a HW process
+   rx + imm = Address of first instruction
+   ry = Address of process structure (see Appendix A)
+0x0F INTVEC rx, ry, imm
+  Program interrupt vector
+   rx + imm = Address of interrupt vector or 0 == no change
+   ry = Interrupt flags (enable/disable/etc)
 
 0x10 ADD rx, ry, imm
   Add rx + ry + imm, store result to r0
@@ -335,6 +350,33 @@ rx, ry, imm coding = iiyyxx
 0x35 BLE rx, ry, imm
   Branch long if ry is zero, target address = rx + imm
 
+0x40 CO rx, ry, imm
+  Co-processor query call, will write:
+    rx = Return status register for information about coprocessors
+    ry = Return status register for reference number for communication
+0x41 COS rx, ry, imm
+  Order a co-processor to start running code
+    rx = beginning of code to run
+    ry = refernce nuber for communication
+    imm = index of co-processor
+0x42 COQ rx, ry, imm
+  Query status of co-processor
+    rx = Return status register of co-processor
+    ry = refernce nuber for communication
+    imm = index of co-processor
+0x42 COH rx, ry, imm
+  Halt co-processor
+    rx = Free form data to pass to co-processor
+    ry = refernce nuber for communication
+    imm = index of co-processor
+
 0xFF END
   End execution
+
+Appendix A - HW process table
+ HW task/process structure
+ pid       Process ID. Shoulb be 0, will be changed by START opcode
+ perm      permissions flags
+ PC        program counter
+ r0..r255  registers
 """
