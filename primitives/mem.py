@@ -105,6 +105,18 @@ class CPUMem:
         while len(self._data) < self._internal_size:
             self._data.append(0)
 
+    def getSpecial(self, pos):
+        for k in self._specials.keys():
+            if pos >= k and pos < (k + 4):
+                return self._specials[k]
+        return None
+
+    def isSpecial(self, pos):
+        for k in self._specials.keys():
+            if pos >= k and pos < (k + 4):
+                return True
+        return False
+
     def setRaw(self, int_pos, data):
         """ Set raw memory value to data
         @param pos Index
@@ -167,13 +179,16 @@ class CPUMem:
             return self._submem.setRaw(self._sub_int_pos + int_pos, data)
         if self._size == 0:
             self.enlarge(int_pos * self._wordsize)
-        if self._internal_size < int_pos:
-            raise IndexError("Given internal memory position is invalid: %s, max size: %s" % (int_pos, self._internal_size))
+        special = self.getSpecial(int_pos)
+        if self._internal_size < int_pos and special is None:
+            print "%s" % int_pos, self._specials.keys()
+            return
+            #raise IndexError("Given internal memory position is invalid: %s, max size: %s" % (int_pos, self._internal_size))
         if int_pos < 0:
             raise IndexError("Memory position needs to be positive number, got: %s" % (int_pos))
 
-        if int_pos in self._specials:
-            (hget, hset) = self._specials[int_pos]
+        if special is not None:
+            (hget, hset) = special
             if hset is not None:
                 return hset(int_pos, data)
             return
@@ -188,13 +203,14 @@ class CPUMem:
             if self._size > 0 and int_pos > self._internal_size:
                 raise IndexError("Sub memory size limit hit!")
             return self._submem.getRaw(self._sub_int_pos + int_pos)
-        if self._internal_size < int_pos:
+        special = self.getSpecial(int_pos)
+        if self._internal_size < int_pos and special is None:
             raise IndexError("Given internal memory position is invalid: %s, max size: %s" % (int_pos, self._internal_size))
         if int_pos < 0:
             raise IndexError("Memory position needs to be positive number, got: %s" % (int_pos))
 
-        if int_pos in self._specials:
-            (hget, hset) = self._specials[int_pos]
+        if special is not None:
+            (hget, hset) = special
             if hget is not None:
                 return hget(int_pos)
             return 0

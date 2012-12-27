@@ -6,7 +6,8 @@ class RISC1:
         0x03: 'LOAD',
         0x04: 'STORE',
         0x05: 'MOV',
-        0x06: 'SWP',
+        0x06: 'MOVi',
+        0x07: 'SWP',
         0x10: 'ADD',
         0x11: 'SUB',
         0xFF: 'STOP'
@@ -17,14 +18,9 @@ class RISC1:
         self.alu = alu
         self.pc = 0
         self.regs = {}
-        #self.reg_names = ['r0','r1','r2','r3','r4']
-        #for name in self.reg_names:
         for num in xrange(255):
             self.regs['r%s' % (num)] = 0
-        self.rev_opcodes = {}
         self.rev_opcodes = {v:k for k, v in self.opcodes.iteritems()}
-        #for key, val in self.opcodes.iteritems():
-        #    self.rev_opcodes[val] = key
 
     def fetch(self):
         inst = self.mem.getRaw(self.pc)
@@ -122,6 +118,8 @@ class RISC1:
                     if imm is not None:
                         src += imm
                     self.regs[rx] = src
+            elif op == self.rev_opcodes['MOVi']:
+                self.regs['r0'] = imm
             elif op == self.rev_opcodes['SWP']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 if imm is None:
@@ -152,7 +150,9 @@ rx, ry, imm coding = iiyyxx
   Store value to (rx+imm) memory location from ry/r0
 0x05 MOV rx, ry, imm
   Move value of register ry to register rx, add imm
-0x06 SWP rx, ry, imm
+0x06 MOVi IMM
+  Move IMM to r0
+0x07 SWP rx, ry, imm
   Swap value of registers ry and rx, add imm to both
 
 0x10 ADD rx, ry, imm
