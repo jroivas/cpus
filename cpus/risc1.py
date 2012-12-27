@@ -1,32 +1,6 @@
+from opcodes import Opcodes
+
 class RISC1:
-    opcodes = {
-        0x00: 'NOP',
-        0x01: 'LOADi',
-        0x02: 'STOREi',
-        0x03: 'LOAD',
-        0x04: 'STORE',
-        0x05: 'MOV',
-        0x06: 'MOVi',
-        0x07: 'SWP',
-        0x10: 'ADD',
-        0x11: 'SUB',
-        0x12: 'MUL',
-        0x13: 'DIV',
-        0x14: 'MOD',
-        0x15: 'SHL',
-        0x16: 'SHR',
-        0x17: 'AND',
-        0x18: 'OR',
-        0x19: 'XOR',
-        0x20: 'NOT',
-        0x30: 'B',
-        0x31: 'BZ',
-        0x32: 'BNZ',
-        0x33: 'BE',
-        0x34: 'BNE',
-        0x35: 'BLE',
-        0xFF: 'STOP'
-        }
     wordsize = 4
 
     def __init__(self, mem, alu):
@@ -34,9 +8,9 @@ class RISC1:
         self.alu = alu
         self.pc = 0
         self.regs = {}
+        self.opcodes = Opcodes()
         for num in xrange(255):
             self.regs['r%s' % (num)] = 0
-        self.rev_opcodes = {v:k for k, v in self.opcodes.iteritems()}
 
     def fetch(self):
         inst = self.mem.getData(self.pc, self.wordsize)
@@ -99,17 +73,17 @@ class RISC1:
         while True:
             inst = self.fetch()
             (op, imm) = self.decode(inst)
-            if op in self.opcodes and self.opcodes[op][-1] == 'i':
+            if op in self.opcodes.opcodes and self.opcodes.opcodes[op][-1] == 'i':
                 print ("[PC %s] %s %s" % (self.pc, op, imm))
             else:
                 print ("[PC %s] %s %s" % (self.pc, op, self.solveRegNames(imm)))
-            if op == self.rev_opcodes['STOP']:
+            if op == self.opcodes.rev_opcodes['STOP']:
                 break
-            elif op == self.rev_opcodes['LOADi']:
+            elif op == self.opcodes.rev_opcodes['LOADi']:
                 self.regs['r0'] = self.load(imm)
-            elif op == self.rev_opcodes['STOREi']:
+            elif op == self.opcodes.rev_opcodes['STOREi']:
                  self.store(imm, self.regs['r0'])
-            elif op == self.rev_opcodes['LOAD']:
+            elif op == self.opcodes.rev_opcodes['LOAD']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 rimm = 0
                 if rx is not None:
@@ -119,7 +93,7 @@ class RISC1:
                 if ry is None:
                     ry = 'r0'
                 self.regs[ry] = self.load(rimm)
-            elif op == self.rev_opcodes['STORE']:
+            elif op == self.opcodes.rev_opcodes['STORE']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 rimm = 0
                 if rx is not None:
@@ -129,7 +103,7 @@ class RISC1:
                 if ry is None:
                     ry = 'r0'
                 self.store(rimm, self.regs[ry])
-            elif op == self.rev_opcodes['MOV']:
+            elif op == self.opcodes.rev_opcodes['MOV']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 if rx is not None:
                     src = 0            
@@ -138,9 +112,9 @@ class RISC1:
                     if imm is not None:
                         src += imm
                     self.regs[rx] = src
-            elif op == self.rev_opcodes['MOVi']:
+            elif op == self.opcodes.rev_opcodes['MOVi']:
                 self.regs['r0'] = imm
-            elif op == self.rev_opcodes['SWP']:
+            elif op == self.opcodes.rev_opcodes['SWP']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 if imm is None:
                     imm = 0
@@ -148,17 +122,17 @@ class RISC1:
                     tmp = self.regs[rx]
                     self.regs[rx] = self.regs[ry] + imm
                     self.regs[ry] = tmp + imm
-            elif op == self.rev_opcodes['ADD']:
+            elif op == self.opcodes.rev_opcodes['ADD']:
                 self.regs['r0'] += self.alu.add(*self.solveValues(imm))
-            elif op == self.rev_opcodes['SUB']:
+            elif op == self.opcodes.rev_opcodes['SUB']:
                 self.regs['r0'] += self.alu.sub(*self.solveValues(imm))
-            elif op == self.rev_opcodes['MUL']:
+            elif op == self.opcodes.rev_opcodes['MUL']:
                 self.regs['r0'] += self.alu.mul(*self.solveValues(imm))
-            elif op == self.rev_opcodes['DIV']:
+            elif op == self.opcodes.rev_opcodes['DIV']:
                 self.regs['r0'] += self.alu.div(*self.solveValues(imm))
-            elif op == self.rev_opcodes['MOD']:
+            elif op == self.opcodes.rev_opcodes['MOD']:
                 self.regs['r0'] += self.alu.mod(*self.solveValues(imm))
-            elif op == self.rev_opcodes['SHL']:
+            elif op == self.opcodes.rev_opcodes['SHL']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 if rx is not None and imm is not None:
                     if ry is not None:
@@ -166,7 +140,7 @@ class RISC1:
                     else:
                         target = rx
                     self.regs[target] = self.alu.b_shl(rx, imm)
-            elif op == self.rev_opcodes['SHR']:
+            elif op == self.opcodes.rev_opcodes['SHR']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 if rx is not None and imm is not None:
                     if ry is not None:
@@ -174,19 +148,19 @@ class RISC1:
                     else:
                         target = rx
                     self.regs[target] = self.alu.b_shr(rx, imm)
-            elif op == self.rev_opcodes['AND']:
+            elif op == self.opcodes.rev_opcodes['AND']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 if rx is not None and ry is not None:
                     self.regs['r0'] = self.alu.b_and(rx, ry)
-            elif op == self.rev_opcodes['OR']:
+            elif op == self.opcodes.rev_opcodes['OR']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 if rx is not None and ry is not None:
                     self.regs['r0'] = self.alu.b_or(rx, ry)
-            elif op == self.rev_opcodes['XOR']:
+            elif op == self.opcodes.rev_opcodes['XOR']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 if rx is not None and ry is not None:
                     self.regs['r0'] = self.alu.b_xor(rx, ry)
-            elif op == self.rev_opcodes['NOT']:
+            elif op == self.opcodes.rev_opcodes['NOT']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 if rx is not None:
                     if ry is not None:
@@ -195,25 +169,27 @@ class RISC1:
                         target = rx
                     self.regs[target] = self.alu.b_not(rx)
             ## Branching
-            elif op == self.rev_opcodes['B']:
+            elif op == self.opcodes.rev_opcodes['B']:
+                print "Brancing from %s" % (self.pc)
                 self.pc = imm
-            elif op == self.rev_opcodes['BZ']:
+                print "Brancing to %s" % (imm)
+            elif op == self.opcodes.rev_opcodes['BZ']:
                 if self.regs['r0'] == 0:
                     self.pc = imm
-            elif op == self.rev_opcodes['BNZ']:
+            elif op == self.opcodes.rev_opcodes['BNZ']:
                 if self.regs['r0'] != 0:
                     self.pc = imm
-            elif op == self.rev_opcodes['BE']:
+            elif op == self.opcodes.rev_opcodes['BE']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 if rx is not None and ry is not None and imm is not None:
                     if self.regs[rx] == self.regs[ry]:
                         self.pc += imm
-            elif op == self.rev_opcodes['BNE']:
+            elif op == self.opcodes.rev_opcodes['BNE']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 if rx is not None and ry is not None and imm is not None:
                     if self.regs[rx] != self.regs[ry]:
                         self.pc += imm
-            elif op == self.rev_opcodes['BLE']:
+            elif op == self.opcodes.rev_opcodes['BLE']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 im = 0
                 if imm is not None:
