@@ -35,7 +35,7 @@ class RISC1:
         return (x, y, i)
 
     def solveRegNames(self, datas):
-        (x,y,i) = self.solveRegs(datas)
+        (x, y, i) = self.solveRegs(datas)
         rx = None
         ry = None
         imm = None
@@ -53,10 +53,12 @@ class RISC1:
         xval = 0
         yval = 0
         immval = 0
+        """
         if rx is not None:
             xval = self.regs['r%s' % xval]
         if ry is not None:
             yval = self.regs['r%s' % yval]
+        """
         if imm is not None:
             immval = imm
 
@@ -73,7 +75,7 @@ class RISC1:
         while True:
             inst = self.fetch()
             (op, imm) = self.decode(inst)
-            if op in self.opcodes.opcodes and self.opcodes.opcodes[op][-1] == 'i':
+            if (op in self.opcodes.opcodes and self.opcodes.opcodes[op][-1] == 'i') or op == self.opcodes.rev_opcodes['B']:
                 print ("[PC %s] %s %s" % (self.pc, op, imm))
             else:
                 print ("[PC %s] %s %s" % (self.pc, op, self.solveRegNames(imm)))
@@ -139,7 +141,7 @@ class RISC1:
                         target = ry
                     else:
                         target = rx
-                    self.regs[target] = self.alu.b_shl(rx, imm)
+                    self.regs[target] = self.alu.b_shl(self.regs[rx], imm)
             elif op == self.opcodes.rev_opcodes['SHR']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 if rx is not None and imm is not None:
@@ -147,19 +149,19 @@ class RISC1:
                         target = ry
                     else:
                         target = rx
-                    self.regs[target] = self.alu.b_shr(rx, imm)
+                    self.regs[target] = self.alu.b_shr(self.regs[rx], imm)
             elif op == self.opcodes.rev_opcodes['AND']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 if rx is not None and ry is not None:
-                    self.regs['r0'] = self.alu.b_and(rx, ry)
+                    self.regs['r0'] = self.alu.b_and(self.regs[rx], self.regs[ry])
             elif op == self.opcodes.rev_opcodes['OR']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 if rx is not None and ry is not None:
-                    self.regs['r0'] = self.alu.b_or(rx, ry)
+                    self.regs['r0'] = self.alu.b_or(self.regs[rx], self.regs[ry])
             elif op == self.opcodes.rev_opcodes['XOR']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 if rx is not None and ry is not None:
-                    self.regs['r0'] = self.alu.b_xor(rx, ry)
+                    self.regs['r0'] = self.alu.b_xor(self.regs[rx], self.regs[ry])
             elif op == self.opcodes.rev_opcodes['NOT']:
                 (rx, ry, imm) = self.solveRegNames(imm)
                 if rx is not None:
