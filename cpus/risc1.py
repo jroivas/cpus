@@ -12,6 +12,7 @@ class RISC1:
         0x11: 'SUB',
         0xFF: 'STOP'
         }
+    wordsize = 4
 
     def __init__(self, mem, alu):
         self.mem = mem
@@ -23,8 +24,8 @@ class RISC1:
         self.rev_opcodes = {v:k for k, v in self.opcodes.iteritems()}
 
     def fetch(self):
-        inst = self.mem.getRaw(self.pc)
-        self.pc += 1
+        inst = self.mem.getData(self.pc, self.wordsize)
+        self.pc += self.wordsize
         return inst
 
     def decode(self, inst):
@@ -33,10 +34,10 @@ class RISC1:
         return (opcode, imm)
 
     def load(self, imm):
-        return self.mem.getRaw(imm)
+        return self.mem.getData(imm, self.wordsize)
 
     def store(self, imm, data):
-        self.mem.setRaw(imm, data)
+        self.mem.setData(imm, data)
 
     def solveRegs(self, datas):
         x = datas & 0xff
@@ -82,7 +83,10 @@ class RISC1:
         while True:
             inst = self.fetch()
             (op, imm) = self.decode(inst)
-            print ("[PC %s] %s %s" % (self.pc, op, self.solveRegNames(imm)))
+            if op in self.opcodes and self.opcodes[op][-1] == 'i':
+                print ("[PC %s] %s %s" % (self.pc, op, imm))
+            else:
+                print ("[PC %s] %s %s" % (self.pc, op, self.solveRegNames(imm)))
             if op == self.rev_opcodes['STOP']:
                 break
             elif op == self.rev_opcodes['LOADi']:

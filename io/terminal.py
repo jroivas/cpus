@@ -6,6 +6,7 @@ class Terminal:
         self.height = 24
         self.base = 0
         self.resize()
+        self.control = None
 
     def setBase(self, base):
         self.base = base
@@ -18,14 +19,25 @@ class Terminal:
             self.screen = [0]*(newsize)
 
     def setControl(self, pos, data):
+        #print "%x %x" % (pos, data)
         if data & 0xFF == 0xAA:
-            self.width = data >> 8
-            self.resize()
-        if data & 0xFF == 0xBB:
-            self.height = data >> 8
-            self.resize()
-        if data & 0xFF == 0x01:
+            self.control = 'width'
+            self.width = 0
+        elif data & 0xFF == 0xBB:
+            self.control = 'height'
+            self.height = 0
+        elif data & 0xFF == 0x01:
+            self.control = 'print'
             self.printScreen()
+        else:
+            if self.control == 'height':
+                self.height <<= 8
+                self.height |= data
+                self.resize()
+            elif self.control == 'width':
+                self.width <<= 8
+                self.width |= data
+                self.resize()
 
     def setData(self, pos, data):
         pos -= self.base
