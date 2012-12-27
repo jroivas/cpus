@@ -26,7 +26,7 @@ class ALU:
         return res
 
     def sub(self, *args):
-        """ Subtract two numbers
+        """ Subtract numbers
 
         >>> a = ALU()
         >>> print a.sub(2, 1)
@@ -45,6 +45,8 @@ class ALU:
         0
         >>> print a.sub(1)
         1
+        >>> print a.sub(8, 5, 2)
+        1
         """
         if not args:
             return 0
@@ -54,7 +56,8 @@ class ALU:
         return res
 
     def mul(self, *args):
-        """
+        """ Multiple numbers together
+
         >>> a = ALU()
         >>> print a.mul(1, 2)
         2
@@ -63,13 +66,16 @@ class ALU:
         >>> print a.mul(1.5, 2)
         3.0
         """
+        if not args:
+            return 0
         res = args[0]
         for item in args[1:]:
             res *= item
         return res
 
     def div(self, *args):
-        """
+        """ Divide first argument with others
+
         >>> a = ALU()
         >>> print a.div(1, 2)
         0
@@ -77,14 +83,35 @@ class ALU:
         0.5
         >>> print a.div(6, 2)
         3
+        >>> print a.div(12, 2, 3)
+        2
         """
         res = args[0]
         for item in args[1:]:
             res /= item
         return res
 
-    def mod(self, r1, r2):
-        return r1 % r2
+    def mod(self, *args):
+        """ Take remainder of integer dividation
+
+        >>> a = ALU()
+        >>> print a.mod(1, 2)
+        1
+        >>> print a.mod(7, 3)
+        1
+        >>> print a.mod(8, 3)
+        2
+        >>> print a.mod(9, 3)
+        0
+        >>> print a.mod(25, 11)
+        3
+        >>> print a.mod(26, 11, 3)
+        1
+        """
+        res = args[0]
+        for item in args[1:]:
+            res %= item
+        return res
 
     def b_shl(self, r1, r2):
         return r1 << r2

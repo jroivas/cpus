@@ -10,6 +10,21 @@ class RISC1:
         0x07: 'SWP',
         0x10: 'ADD',
         0x11: 'SUB',
+        0x12: 'MUL',
+        0x13: 'DIV',
+        0x14: 'MOD',
+        0x15: 'SHL',
+        0x16: 'SHR',
+        0x17: 'AND',
+        0x18: 'OR',
+        0x19: 'XOR',
+        0x20: 'NOT',
+        0x30: 'B',
+        0x31: 'BZ',
+        0x32: 'BNZ',
+        0x33: 'BE',
+        0x34: 'BNE',
+        0x35: 'BLE',
         0xFF: 'STOP'
         }
     wordsize = 4
@@ -70,6 +85,7 @@ class RISC1:
             yval = self.regs['r%s' % yval]
         if imm is not None:
             immval = imm
+
         return (xval, yval, immval)
 
     def dump(self):
@@ -134,42 +150,139 @@ class RISC1:
                     self.regs[ry] = tmp + imm
             elif op == self.rev_opcodes['ADD']:
                 self.regs['r0'] += self.alu.add(*self.solveValues(imm))
+            elif op == self.rev_opcodes['SUB']:
+                self.regs['r0'] += self.alu.sub(*self.solveValues(imm))
+            elif op == self.rev_opcodes['MUL']:
+                self.regs['r0'] += self.alu.mul(*self.solveValues(imm))
+            elif op == self.rev_opcodes['DIV']:
+                self.regs['r0'] += self.alu.div(*self.solveValues(imm))
+            elif op == self.rev_opcodes['MOD']:
+                self.regs['r0'] += self.alu.mod(*self.solveValues(imm))
+            elif op == self.rev_opcodes['SHL']:
+                (rx, ry, imm) = self.solveRegNames(imm)
+                if rx is not None and imm is not None:
+                    if ry is not None:
+                        target = ry
+                    else:
+                        target = rx
+                    self.regs[target] = self.alu.b_shl(rx, imm)
+            elif op == self.rev_opcodes['SHR']:
+                (rx, ry, imm) = self.solveRegNames(imm)
+                if rx is not None and imm is not None:
+                    if ry is not None:
+                        target = ry
+                    else:
+                        target = rx
+                    self.regs[target] = self.alu.b_shr(rx, imm)
+            elif op == self.rev_opcodes['AND']:
+                (rx, ry, imm) = self.solveRegNames(imm)
+                if rx is not None and ry is not None:
+                    self.regs['r0'] = self.alu.b_and(rx, ry)
+            elif op == self.rev_opcodes['OR']:
+                (rx, ry, imm) = self.solveRegNames(imm)
+                if rx is not None and ry is not None:
+                    self.regs['r0'] = self.alu.b_or(rx, ry)
+            elif op == self.rev_opcodes['XOR']:
+                (rx, ry, imm) = self.solveRegNames(imm)
+                if rx is not None and ry is not None:
+                    self.regs['r0'] = self.alu.b_xor(rx, ry)
+            elif op == self.rev_opcodes['NOT']:
+                (rx, ry, imm) = self.solveRegNames(imm)
+                if rx is not None:
+                    if ry is not None:
+                        target = ry
+                    else:
+                        target = rx
+                    self.regs[target] = self.alu.b_not(rx)
+            ## Branching
+            elif op == self.rev_opcodes['B']:
+                self.pc = imm
+            elif op == self.rev_opcodes['BZ']:
+                if self.regs['r0'] == 0:
+                    self.pc = imm
+            elif op == self.rev_opcodes['BNZ']:
+                if self.regs['r0'] != 0:
+                    self.pc = imm
+            elif op == self.rev_opcodes['BE']:
+                (rx, ry, imm) = self.solveRegNames(imm)
+                if rx is not None and ry is not None and imm is not None:
+                    if self.regs[rx] == self.regs[ry]:
+                        self.pc += imm
+            elif op == self.rev_opcodes['BNE']:
+                (rx, ry, imm) = self.solveRegNames(imm)
+                if rx is not None and ry is not None and imm is not None:
+                    if self.regs[rx] != self.regs[ry]:
+                        self.pc += imm
+            elif op == self.rev_opcodes['BLE']:
+                (rx, ry, imm) = self.solveRegNames(imm)
+                im = 0
+                if imm is not None:
+                    im = imm
+                if rx is not None and ry is not None:
+                    if self.regs[ry] == 0:
+                        self.pc = self.regs[rx] + im
         self.dump()
 
 """ Instruction set
 
-IMM         coding = AABBCC
+imm         coding = AABBCC
 rx          coding = 0000xx
 rx, ry      coding = 00yyxx
 rx, ry, imm coding = iiyyxx
 
 0x00 NOP
-0x01 LOAD IMM
-  Load value from IMM memory location to r0
-0x02 STORE IMM
-  Store value to IMM memory location from r0
+0x01 LOAD imm
+  Load value from imm memory location to r0
+0x02 STORE imm
+  Store value to imm memory location from r0
 0x03 LOAD rx, ry, imm
   Load value from (rx+imm) memory location to ry/r0
 0x04 STORE rx, ry, imm
   Store value to (rx+imm) memory location from ry/r0
 0x05 MOV rx, ry, imm
   Move value of register ry to register rx, add imm
-0x06 MOVi IMM
-  Move IMM to r0
+0x06 MOVi imm
+  Move imm to r0
 0x07 SWP rx, ry, imm
   Swap value of registers ry and rx, add imm to both
 
 0x10 ADD rx, ry, imm
+  Add rx + ry + imm, store result to r0
 0x11 SUB rx, ry, imm
+  Subtract rx - ry - imm, store result to r0
 0x12 MUL rx, ry, imm
+  Multiply rx * ry * imm, store result to r0
 0x13 DIV rx, ry, imm
+  Divide rx / ry /imm, store result to r0
 0x14 MOD rx, ry, imm
+  Take remainder of  rx % ry % imm, store result to r0
 0x15 SHL rx, ry, imm
+  Shift left rx by imm, store result to ry or in rx if ry not defined
 0x16 SHR rx, ry, imm
-0x17 AND rx, ry, imm
+  Shift right rx by imm, store result to ry or in rx if ry not defined
+0x17 AND rx, ry
+  Does bitwise and (rx&ry), store result to r0
 0x18 OR rx, ry
+  Does bitwise or (rx|ry), store result to r0
 0x19 XOR rx, ry
+  Does bitwise exclusive or (rx^ry), store result to r0
 0x20 NOT rx
+  Does bitwise not (~rx), store result to ry or rx if ry not defined
+
+
+0x30 B imm
+  Branch to location imm
+0x31 BZ imm
+  Branch to location imm, if r0 is zero
+0x32 BNZ imm
+  Branch to location imm, if r0 is not zero
+0x33 BE rx, ry, imm
+  Increase PC by imm if value rx == ry
+0x34 BNE rx, ry, imm
+  Increase PC by imm if value rx != ry
+0x35 BLE rx, ry, imm
+  Branch long if ry is zero, target address = rx + imm
+
 0xFF END
   End execution
 """
