@@ -1,3 +1,4 @@
+# First here's the interrupt vector
 B start
 B timer
 B .
@@ -18,7 +19,7 @@ loop:
 # Timer handler
 timer:
 	ADD r2, 0, 1
-	mov r3, 10
+	mov r3, 0, 10
 	BE r2, r3, 4
 	IRET
 	STOP

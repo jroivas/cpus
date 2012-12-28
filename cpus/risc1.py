@@ -70,12 +70,10 @@ class RISC1:
         xval = 0
         yval = 0
         immval = 0
-        """
         if rx is not None:
-            xval = self.regs['r%s' % xval]
+            xval = self.regs[rx]
         if ry is not None:
-            yval = self.regs['r%s' % yval]
-        """
+            xval = self.regs[ry]
         if imm is not None:
             immval = imm
 
@@ -156,19 +154,29 @@ class RISC1:
     def handleBasicALU(self, op, imm):
         handled = False
         if op == self.opcodes.rev_opcodes['ADD']:
-            self.regs['r0'] += self.alu.add(*self.solveValues(imm))
+            (rx, ry, dum) = self.solveRegNames(imm)
+            if rx is not None:
+                self.regs[rx] = self.alu.add(*self.solveValues(imm))
             handled = True
         elif op == self.opcodes.rev_opcodes['SUB']:
-            self.regs['r0'] += self.alu.sub(*self.solveValues(imm))
+            (rx, ry, dum) = self.solveRegNames(imm)
+            if rx is not None:
+                self.regs[rx] = self.alu.sub(*self.solveValues(imm))
             handled = True
         elif op == self.opcodes.rev_opcodes['MUL']:
-            self.regs['r0'] += self.alu.mul(*self.solveValues(imm))
+            (rx, ry, dum) = self.solveRegNames(imm)
+            if rx is not None:
+                self.regs[rx] = self.alu.mul(*self.solveValues(imm))
             handled = True
         elif op == self.opcodes.rev_opcodes['DIV']:
-            self.regs['r0'] += self.alu.div(*self.solveValues(imm))
+            (rx, ry, dum) = self.solveRegNames(imm)
+            if rx is not None:
+                self.regs[rx] = self.alu.div(*self.solveValues(imm))
             handled = True
         elif op == self.opcodes.rev_opcodes['MOD']:
-            self.regs['r0'] += self.alu.mod(*self.solveValues(imm))
+            (rx, ry, dum) = self.solveRegNames(imm)
+            if rx is not None:
+                self.regs[rx] = self.alu.mod(*self.solveValues(imm))
             handled = True
 
         if handled:
@@ -198,17 +206,17 @@ class RISC1:
         elif op == self.opcodes.rev_opcodes['AND']:
             (rx, ry, imm) = self.solveRegNames(imm)
             if rx is not None and ry is not None:
-                self.regs['r0'] = self.alu.b_and(self.regs[rx], self.regs[ry])
+                self.regs[rx] = self.alu.b_and(self.regs[rx], self.regs[ry])
                 handled = True
         elif op == self.opcodes.rev_opcodes['OR']:
             (rx, ry, imm) = self.solveRegNames(imm)
             if rx is not None and ry is not None:
-                self.regs['r0'] = self.alu.b_or(self.regs[rx], self.regs[ry])
+                self.regs[rx] = self.alu.b_or(self.regs[rx], self.regs[ry])
                 handled = True
         elif op == self.opcodes.rev_opcodes['XOR']:
             (rx, ry, imm) = self.solveRegNames(imm)
             if rx is not None and ry is not None:
-                self.regs['r0'] = self.alu.b_xor(self.regs[rx], self.regs[ry])
+                self.regs[rx] = self.alu.b_xor(self.regs[rx], self.regs[ry])
                 handled = True
         elif op == self.opcodes.rev_opcodes['NOT']:
             (rx, ry, imm) = self.solveRegNames(imm)
@@ -386,6 +394,7 @@ class RISC1:
     def handleInterrupts(self):
         if not self.interrupt:
             return
+
         intnum = self.interrupt[0]
         self.interrupt = self.interrupt[1:]
 
@@ -396,7 +405,6 @@ class RISC1:
             self.regs[self.retreg] = self.regs[self.pc]
 
             self.regs[self.pc] = handler
-            #handler()
             #self.loadState(mystate)
 
     def returnInterrupt(self):
@@ -414,9 +422,9 @@ class RISC1:
             (op, imm) = self.decode(inst)
             if verbose:
                 if (op in self.opcodes.opcodes and self.opcodes.opcodes[op][-1] == 'i') or op == self.opcodes.rev_opcodes['B']:
-                    print ("%s [PC %s] %s %s" % (self.cycle, self.regs[self.pc], op, imm))
+                    print ("[PC %s] %s %s" % (self.regs[self.pc], op, imm))
                 else:
-                    print ("%s [PC %s] %s %s" % (self.cycle, self.regs[self.pc], op, self.solveRegNames(imm)))
+                    print ("[PC %s] %s %s" % (self.regs[self.pc], op, self.solveRegNames(imm)))
 
             if op == self.opcodes.rev_opcodes['STOP']:
                 break
@@ -503,25 +511,25 @@ LOAD64 rx, ry, imm
    ry = Interrupt flags (enable/disable/etc)
 
 0x10 ADD rx, ry, imm
-  Add rx + ry + imm, store result to r0
+  Do rx = rx + ry + imm, store result to rx
 0x11 SUB rx, ry, imm
-  Subtract rx - ry - imm, store result to r0
+  Subtract rx = rx - ry - imm, store result to rx
 0x12 MUL rx, ry, imm
-  Multiply rx * ry * imm, store result to r0
+  Multiply rx = rx * ry * imm, store result to rx
 0x13 DIV rx, ry, imm
-  Divide rx / ry /imm, store result to r0
+  Divide rx = rx / ry /imm, store result to rx
 0x14 MOD rx, ry, imm
-  Take remainder of  rx % ry % imm, store result to r0
+  Take remainder of rx = rx % ry % imm, store result to rx
 0x15 SHL rx, ry, imm
   Shift left rx by imm, store result to ry or in rx if ry not defined
 0x16 SHR rx, ry, imm
   Shift right rx by imm, store result to ry or in rx if ry not defined
 0x17 AND rx, ry
-  Does bitwise and (rx&ry), store result to r0
+  Does bitwise and (rx&ry), store result to rx
 0x18 OR rx, ry
-  Does bitwise or (rx|ry), store result to r0
+  Does bitwise or (rx|ry), store result to rx
 0x19 XOR rx, ry
-  Does bitwise exclusive or (rx^ry), store result to r0
+  Does bitwise exclusive or (rx^ry), store result to rx
 0x20 NOT rx
   Does bitwise not (~rx), store result to ry or rx if ry not defined
 
