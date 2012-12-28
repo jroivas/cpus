@@ -95,11 +95,14 @@ class Assembly:
 
             tmp = line.split()
             if tmp:
-                cmd = tmp[0].upper()
+                cmd = tmp[0]
                 rest = ' '.join(tmp[1:])
                     
-                if cmd in self.opcodes.rev_opcodes:
-                    opcode = self.opcodes.rev_opcodes[cmd]
+                if cmd in self.opcodes.aliases:
+                    cmd = self.opcodes.aliases[cmd]
+
+                if cmd.upper() in self.opcodes.rev_upper_opcodes:
+                    opcode = self.opcodes.rev_upper_opcodes[cmd.upper()]
                 else:
                     try:
                         if '0x' in cmd:
@@ -248,7 +251,6 @@ if __name__ == '__main__':
     stub = ass.solveLabels(stub, labels)
     print (stub)
     (code, bytecode) = ass.generateCode(stub)
-    #print code
     if ofname is not None:
         for c in code:
             print "%.8x" % c

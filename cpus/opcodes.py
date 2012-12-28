@@ -2,14 +2,29 @@
 class Opcodes:
     opcodes = {
         0x00: 'NOP',
-        0x01: 'LOADi',
-        0x02: 'STOREi',
-        0x03: 'LOAD',
-        0x04: 'STORE',
-        0x05: 'MOV',
-        0x06: 'MOVi',
-        0x07: 'SWP',
-        0x0F: 'INTVEC',
+        0x01: 'LOAD8i',
+        0x02: 'LOAD16i',
+        0x03: 'LOAD32i',
+        0x04: 'STORE8i',
+        0x05: 'STORE16i',
+        0x06: 'STORE32i',
+        0x07: 'LOAD8',
+        0x08: 'LOAD16',
+        0x09: 'LOAD32',
+        0x0A: 'LOAD64',
+        0x0B: 'STORE8',
+        0x0C: 'STORE16',
+        0x0D: 'STORE32',
+        0x0E: 'STORE64',
+
+        0x23: 'MOV',
+        0x24: 'MOVi',
+        0x25: 'SWP',
+
+        0x2D: 'MAP',
+        0x2E: 'START',
+        0x2F: 'INTVEC',
+
         0x10: 'ADD',
         0x11: 'SUB',
         0x12: 'MUL',
@@ -35,8 +50,20 @@ class Opcodes:
         0x3D: 'IRET',
         0x3E: 'SETI',
         0x3F: 'CLRI',
+        0x40: 'CO',
+        0x41: 'COS',
+        0x42: 'COQ',
+        0x43: 'COH',
         0xFF: 'STOP'
+        }
+
+    aliases = {
+        'LOADi': 'LOAD32i',
+        'STOREi': 'STORE32i',
+        'LOAD': 'LOAD32',
+        'STORE': 'STORE32',
         }
 
     def __init__(self):
         self.rev_opcodes = {v:k for k, v in self.opcodes.iteritems()}
+        self.rev_upper_opcodes = {v.upper():k for k, v in self.opcodes.iteritems()}

@@ -39,11 +39,15 @@ class RISC1:
         imm = (inst >> 8)
         return (opcode, imm)
 
-    def load(self, imm):
-        return self.mem.getData(imm, self.wordsize)
+    def load(self, imm, size=None):
+        if size is None:
+            size = self.wordsize
+        return self.mem.getData(imm, size)
 
-    def store(self, imm, data):
-        self.mem.setData(imm, data)
+    def store(self, imm, data, size=None):
+        if size is None:
+            size = self.wordsize
+        self.mem.setData(imm, data, size)
 
     def solveRegs(self, datas):
         x = datas & 0xff
@@ -86,35 +90,78 @@ class RISC1:
             if val != 0:
                 print ("r%x: %s" % (num, val))
 
+    def handleLoadStoreXBits(self, loadorstore, imm, size):
+        (rx, ry, imm) = self.solveRegNames(imm)
+        rimm = 0
+        if rx is not None:
+            rimm = self.regs[rx]
+        if imm is not None:
+            rimm += imm
+        if ry is None:
+            ry = 'r0'
+
+        if loadorstore == 'load':
+            if size == 8:
+                self.regs[ry] = self.load(rimm, 4)
+                self.regs[rx] = self.load(rimm + 4, 4)
+            else:
+                self.regs[ry] = self.load(rimm, size)
+        elif loadorstore == 'store':
+            if size == 8:
+                self.store(rimm, self.regs[ry], 4)
+                self.store(rimm + 4, self.regs['r0'], 4)
+            else:
+                self.store(rimm, self.regs[ry], size)
+
+    def handleLoad(self, imm, size):
+        self.handleLoadOrStoreXBits('load', imm, size)
+
+    def handleStrore(self, imm, size):
+        self.handleLoadOrStoreXBits('store', imm, size)
+
     def handleStoreLoad(self, op, imm):
         handled = False
-        if op == self.opcodes.rev_opcodes['LOADi']:
-            self.regs['r0'] = self.load(imm)
+        if op == self.opcodes.rev_opcodes['LOAD8i']:
+            self.regs['r0'] = self.load(imm, 1)
             handled = True
-        elif op == self.opcodes.rev_opcodes['STOREi']:
-            self.store(imm, self.regs['r0'])
+        elif op == self.opcodes.rev_opcodes['LOAD16i']:
+            self.regs['r0'] = self.load(imm, 2)
             handled = True
-        elif op == self.opcodes.rev_opcodes['LOAD']:
-            (rx, ry, imm) = self.solveRegNames(imm)
-            rimm = 0
-            if rx is not None:
-                rimm = self.regs[rx]
-            if imm is not None:
-                rimm += imm
-            if ry is None:
-                ry = 'r0'
-            self.regs[ry] = self.load(rimm)
+        elif op == self.opcodes.rev_opcodes['LOAD32i']:
+            self.regs['r0'] = self.load(imm, 4)
             handled = True
-        elif op == self.opcodes.rev_opcodes['STORE']:
-            (rx, ry, imm) = self.solveRegNames(imm)
-            rimm = 0
-            if rx is not None:
-                rimm = self.regs[rx]
-            if imm is not None:
-                rimm += imm
-            if ry is None:
-                ry = 'r0'
-            self.store(rimm, self.regs[ry])
+        elif op == self.opcodes.rev_opcodes['STORE8i']:
+            self.store(imm, self.regs['r0'], 1)
+            handled = True
+        elif op == self.opcodes.rev_opcodes['STORE16i']:
+            self.store(imm, self.regs['r0'], 2)
+            handled = True
+        elif op == self.opcodes.rev_opcodes['STORE32i']:
+            self.store(imm, self.regs['r0'], 4)
+            handled = True
+        elif op == self.opcodes.rev_opcodes['LOAD8']:
+            self.handleLoad(imm, 1)
+            handled = True
+        elif op == self.opcodes.rev_opcodes['LOAD16']:
+            self.handleLoad(imm, 2)
+            handled = True
+        elif op == self.opcodes.rev_opcodes['LOAD32']:
+            self.handleLoad(imm, 4)
+            handled = True
+        elif op == self.opcodes.rev_opcodes['LOAD64']:
+            self.handleLoad(imm, 8)
+            handled = True
+        elif op == self.opcodes.rev_opcodes['STORE8']:
+            self.handleStore(imm, 1)
+            handled = True
+        elif op == self.opcodes.rev_opcodes['STORE16']:
+            self.handleStore(imm, 2)
+            handled = True
+        elif op == self.opcodes.rev_opcodes['STORE32']:
+            self.handleStore(imm, 4)
+            handled = True
+        elif op == self.opcodes.rev_opcodes['STORE64']:
+            self.handleStore(imm, 8)
             handled = True
 
         if handled:
@@ -467,7 +514,7 @@ class RISC1:
 
         self.dump()
 
-""" Instruction set
+""" Instruction set - 32 bit
 
 imm         coding = AABBCC
 rx          coding = 0000xx
@@ -475,40 +522,34 @@ rx, ry      coding = 00yyxx
 rx, ry, imm coding = iiyyxx
 
 0x00 NOP
-0x01 LOADi imm
-  Load value from imm memory location to r0
-0x02 STOREi imm
-  Store value to imm memory location from r0
-0x03 LOAD rx, ry, imm
-  Load value from (rx+imm) memory location to ry/r0
-0x04 STORE rx, ry, imm
-  Store value to (rx+imm) memory location from ry/r0
-0x05 MOV rx, ry, imm
-  Move value of register ry to register rx, add imm
-0x06 MOVi imm
-  Move imm to r0
-0x07 SWP rx, ry, imm
-  Swap value of registers ry and rx, add imm to both
-
-LOAD8 rx, ry, imm
-LOAD16 rx, ry, imm
-LOAD32 rx, ry, imm
-LOAD64 rx, ry, imm
-
-0x0D MAP rx, ry, imm
-  MMU map page
-   rx = virtual address for page start
-   ry = hw address (needs to be aligned to proper page size)
-        Last 4 bits tells page size:
-        (0 = no mapping, 1 = 1k, 2=4k, 3=16k, 4=64k, 5=256k, 6=512k, 7=1M, 8=4M, 9=16M, a=64M, b=256M, c=512M)
-0x0E START rx, ry, imm
-  Start a HW process
-   rx + imm = Address of first instruction
-   ry = Address of process structure (see Appendix A)
-0x0F INTVEC rx, ry, imm
-  Program interrupt vector, by default read from position 0
-   rx + imm = Address of interrupt vector or 0 == no change
-   ry = Interrupt flags (enable/disable/etc)
+0x01 LOAD8i imm
+  Load 8 bit value from imm memory location to r0
+0x02 LOAD16i imm
+  Load 16 bit value from imm memory location to r0
+0x03 LOAD32i imm
+  Load 32 bit value from imm memory location to r0
+0x04 STORE8i imm
+  Store 8 bit value from r0 to memory location imm
+0x05 STORE16i imm
+  Store 16 bit value from r0 to memory location imm
+0x06 STORE32i imm
+  Store 32 bit value from r0 to memory location imm
+0x07 LOAD8 rx, ry
+  Load 8 bit value from rx memory location to ry/r0
+0x08 LOAD16 rx, ry
+  Load 16 bit value from rx memory location to ry/r0
+0x09 LOAD32 rx, ry
+  Load 32 bit value from rx memory location to ry/r0
+0x0A LOAD64 rx, ry
+  Load 64 bit value from rx memory location to ry/r0 = low 32 bit, rx = high 32 bit
+0x0B STORE8 rx, ry
+  Store 8 bit value to rx memory location from ry/r0
+0x0C STORE16 rx, ry
+  Store 16 bit value to rx memory location from ry/r0
+0x0D STORE32 rx, ry
+  Store 32 bit value to rx memory location from ry/r0
+0x0E STORE64 rx, ry, imm
+  Store 64 bit value to rx memory location from ry/r0 = low 32 bit, r0 = high 32 bit
 
 0x10 ADD rx, ry, imm
   Do rx = rx + ry + imm, store result to rx
@@ -537,6 +578,27 @@ LOAD64 rx, ry, imm
   Push value of ry+imm to stack defined in rx or in case rx==0 use r43
 0x22 POP rx, ry, imm
   Pop value+imm to register ry from stack defined in rx or in case rx==0 use r43
+0x23 MOV rx, ry, imm
+  Move value of register ry to register rx, add imm
+0x24 MOVi imm
+  Move imm to r0
+0x25 SWP rx, ry, imm
+  Swap value of registers ry and rx, add imm to both
+
+0x2D MAP rx, ry, imm
+  MMU map page
+   rx = virtual address for page start
+   ry = hw address (needs to be aligned to proper page size)
+        Last 4 bits tells page size:
+        (0 = no mapping, 1 = 1k, 2=4k, 3=16k, 4=64k, 5=256k, 6=512k, 7=1M, 8=4M, 9=16M, a=64M, b=256M, c=512M)
+0x2E START rx, ry, imm
+  Start a HW process
+   rx + imm = Address of first instruction
+   ry = Address of process structure (see Appendix A)
+0x2F INTVEC rx, ry, imm
+  Program interrupt vector, by default read from position 0
+   rx + imm = Address of interrupt vector or 0 == no change
+   ry = Interrupt flags (enable/disable/etc)
 
 0x30 B imm
   Branch to location imm
@@ -578,7 +640,7 @@ LOAD64 rx, ry, imm
     rx = Return status register of co-processor
     ry = refernce nuber for communication
     imm = index of co-processor
-0x42 COH rx, ry, imm
+0x43 COH rx, ry, imm
   Halt co-processor
     rx = Free form data to pass to co-processor
     ry = refernce nuber for communication
