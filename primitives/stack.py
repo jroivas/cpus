@@ -1,6 +1,8 @@
 
 class Stack:
     def __init__(self, pos, mem, wordsize):
+        """ Initialize stack
+        """
         self.base = pos
         self.pos = pos
         self.mem = mem
@@ -8,6 +10,8 @@ class Stack:
         self.wordsize = wordsize
 
     def getPos(self):
+        """ Get current position of stack
+        """
         return self.pos
 
     def relocate(self, pos):
@@ -33,6 +37,8 @@ class Stack:
         self.pos = pos
 
     def setSize(self, size):
+        """ Set stack size, enables boundary checking
+        """
         self.size = size
 
     def upBoundCheck(self):

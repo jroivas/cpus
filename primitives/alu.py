@@ -2,9 +2,6 @@
 class ALU:
     """ The most simple Arithemetic unit
     """
-    def __init__(self):
-        self.state = None
-
     def add(self, *args):
         """ Add numbers together
 
@@ -114,21 +111,101 @@ class ALU:
         return res
 
     def b_shl(self, r1, r2):
+        """ Shift left
+
+        >>> a = ALU()
+        >>> a.b_shl(1, 1)
+        2
+        >>> a.b_shl(1, 2)
+        4
+        >>> a.b_shl(3, 1)
+        6
+        """
         return r1 << r2
 
     def b_shr(self, r1, r2):
+        """ Shift right
+
+        >>> a = ALU()
+        >>> a.b_shr(2, 1)
+        1
+        >>> a.b_shr(4, 1)
+        2
+        >>> a.b_shr(10, 1)
+        5
+        >>> a.b_shr(10, 2)
+        2
+        """
         return r1 >> r2
 
     def b_and(self, r1, r2):
+        """ Bitwise and
+
+        >>> a = ALU()
+        >>> a.b_and(1, 1)
+        1
+        >>> a.b_and(2, 1)
+        0
+        >>> a.b_and(3, 1)
+        1
+        >>> a.b_and(0xFF, 3)
+        3
+        >>> a.b_and(5, 4)
+        4
+        >>> a.b_and(7, 5)
+        5
+        """
         return r1 & r2
 
     def b_or(self, r1, r2):
+        """ Bitwise or
+
+        >>> a = ALU()
+        >>> a.b_or(1, 1)
+        1
+        >>> a.b_or(1, 0)
+        1
+        >>> a.b_or(0, 1)
+        1
+        >>> a.b_or(0, 0)
+        0
+        >>> a.b_or(3, 1)
+        3
+        >>> a.b_or(2, 1)
+        3
+        """
         return r1 | r2
 
     def b_xor(self, r1, r2):
+        """ Bitwise exclusive or
+
+        >>> a = ALU()
+        >>> a.b_xor(1, 1)
+        0
+        >>> a.b_xor(1, 0)
+        1
+        >>> a.b_xor(0, 1)
+        1
+        >>> a.b_xor(0, 0)
+        0
+        >>> a.b_xor(3, 1)
+        2
+        >>> a.b_xor(2, 1)
+        3
+        """
         return r1 ^ r2
 
     def b_not(self, r):
+        """ Bitwise not
+
+        >>> a = ALU()
+        >>> print '%x' % (a.b_not(1) & 0xff)
+        fe
+        >>> print '%x' % (a.b_not(0xa) & 0xff)
+        f5
+        >>> print '%x' % (a.b_not(0xf8) & 0xff)
+        7
+        """
         return ~ r
 
     def forceInt(self, r):
@@ -143,6 +220,3 @@ class ALU:
         0
         """
         return int(r)
-
-    def getState(self):
-        return self.state
