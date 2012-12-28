@@ -1,4 +1,5 @@
 from opcodes import Opcodes
+from primitives import IntVec
 
 class RISC1:
     wordsize = 4
@@ -6,15 +7,22 @@ class RISC1:
     def __init__(self, mem, alu):
         self.mem = mem
         self.alu = alu
-        self.pc = 0
         self.regs = {}
+        self.intvec = None
         self.opcodes = Opcodes()
         for num in xrange(255):
             self.regs['r%s' % (num)] = 0
 
+        # This is register containing Program Counter
+        self.pc = 'r42'
+        # Stack register
+        self.stackreg = 'r43'
+        # Return register
+        self.retreg = 'r44'
+
     def fetch(self):
-        inst = self.mem.getData(self.pc, self.wordsize)
-        self.pc += self.wordsize
+        inst = self.mem.getData(self.regs[self.pc], self.wordsize)
+        self.regs[self.pc] += self.wordsize
         return inst
 
     def decode(self, inst):
@@ -65,7 +73,7 @@ class RISC1:
         return (xval, yval, immval)
 
     def dump(self):
-        print ("PC: %s" % (self.pc))
+        print ("PC: %s" % (self.regs[self.pc]))
         for num in xrange(255):
             val = self.regs['r%s' % (num)]
             if val != 0:
@@ -202,29 +210,29 @@ class RISC1:
         handled = False
 
         if op == self.opcodes.rev_opcodes['B']:
-            print "Branching from %s" % (self.pc)
-            self.pc = imm
+            print "Branching from %s" % (self.regs[self.pc])
+            self.regs[self.pc] = imm
             print "Branching to %s" % (imm)
             handled = True
         elif op == self.opcodes.rev_opcodes['BZ']:
             if self.regs['r0'] == 0:
-                self.pc = imm
+                self.regs[self.pc] = imm
             handled = True
         elif op == self.opcodes.rev_opcodes['BNZ']:
             if self.regs['r0'] != 0:
-                self.pc = imm
+                self.regs[self.pc] = imm
             handled = True
         elif op == self.opcodes.rev_opcodes['BE']:
             (rx, ry, imm) = self.solveRegNames(imm)
             if rx is not None and ry is not None and imm is not None:
                 if self.regs[rx] == self.regs[ry]:
-                    self.pc += imm
+                    self.regs[self.pc] += imm
                 handled = True
         elif op == self.opcodes.rev_opcodes['BNE']:
             (rx, ry, imm) = self.solveRegNames(imm)
             if rx is not None and ry is not None and imm is not None:
                 if self.regs[rx] != self.regs[ry]:
-                    self.pc += imm
+                    self.regs[self.pc] += imm
                 handled = True
         elif op == self.opcodes.rev_opcodes['BLE']:
             (rx, ry, imm) = self.solveRegNames(imm)
@@ -233,13 +241,69 @@ class RISC1:
                 im = imm
             if rx is not None and ry is not None:
                 if self.regs[ry] == 0:
-                    self.pc = self.regs[rx] + im
+                    self.regs[self.pc] = self.regs[rx] + im
                 handled = True
+        elif op == self.opcodes.rev_opcodes['BSUBi']:
+            self.regs[self.retreg] = self.pc + self.wordsize
+            self.regs[self.pc] = imm
+        elif op == self.opcodes.rev_opcodes['BSUB']:
+            self.regs[self.retreg] = self.pc + self.wordsize
+            (rx, ry, imm) = self.solveRegNames(imm)
+            if imm is None:
+                imm = 0
+            if rx is not None:
+                imm += self.regs[rx]
+            self.regs[self.pc] = imm
+        elif op == self.opcodes.rev_opcodes['BRET']:
+            self.regs[self.pc] = self.regs[self.retreg]
 
         return handled
 
     def illegalInstruction(self, op, imm):
         raise ValueError('Illegal instruction: %s  (%s)' % (op, imm))
+
+    def handleIntvec(self, op, imm):
+        """ Check if we have intvec opcode.
+            If found, try to read and setup new Iterrupt Vector or setup new flags.
+        """
+        handled = False
+        if op == self.opcodes.rev_opcodes['INTVEC']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+
+            if rx is not None:
+                pos = self.regs[rx]
+                if imm is not None:
+                    pos += imm
+                self.intvec = IntVec()
+                self.intvec.read(self.mem, pos, self.wordsize)
+                handled = True
+
+            if ry is not None and self.intvec is not None:
+                flags = self.regs[ry]
+                self.intvec.setFlags(flags)
+                handled = True
+
+        return handled
+
+    def saveState(self):
+        tmp = {}
+        tmp['pc'] = self.regs[self.pc]
+        tmp['stack'] = self.regs[self.stackreg]
+        tmp['regs'] = self.regs.copy()
+        return tmp
+
+    def loadState(self, state):
+        self.regs = tmp['regs']
+        self.regs[self.pc] = tmp['pc']
+        self.regs[self.stackreg] = tmp['stack']
+
+    def raiseInterrupt(self, num):
+        if self.intvec is None:
+            return
+
+        handler = self.intvec.getHandler(num)
+        if handler is not None:
+            pass
 
     def start(self, verbose=False):
         while True:
@@ -247,9 +311,9 @@ class RISC1:
             (op, imm) = self.decode(inst)
             if verbose:
                 if (op in self.opcodes.opcodes and self.opcodes.opcodes[op][-1] == 'i') or op == self.opcodes.rev_opcodes['B']:
-                    print ("[PC %s] %s %s" % (self.pc, op, imm))
+                    print ("[PC %s] %s %s" % (self.regs[self.pc], op, imm))
                 else:
-                    print ("[PC %s] %s %s" % (self.pc, op, self.solveRegNames(imm)))
+                    print ("[PC %s] %s %s" % (self.regs[self.pc], op, self.solveRegNames(imm)))
 
             if op == self.opcodes.rev_opcodes['STOP']:
                 break
@@ -272,6 +336,9 @@ class RISC1:
                 handled = self.handleBranching(op, imm)
 
             if not handled:
+                handled = self.handleIntvec(op, imm)
+
+            if not handled:
                 self.illegalInstruction(op, imm)
 
         self.dump()
@@ -284,9 +351,9 @@ rx, ry      coding = 00yyxx
 rx, ry, imm coding = iiyyxx
 
 0x00 NOP
-0x01 LOAD imm
+0x01 LOADi imm
   Load value from imm memory location to r0
-0x02 STORE imm
+0x02 STOREi imm
   Store value to imm memory location from r0
 0x03 LOAD rx, ry, imm
   Load value from (rx+imm) memory location to ry/r0
@@ -298,6 +365,12 @@ rx, ry, imm coding = iiyyxx
   Move imm to r0
 0x07 SWP rx, ry, imm
   Swap value of registers ry and rx, add imm to both
+
+LOAD8 rx, ry, imm
+LOAD16 rx, ry, imm
+LOAD32 rx, ry, imm
+LOAD64 rx, ry, imm
+
 0x0D MAP rx, ry, imm
   MMU map page
    rx = virtual address for page start
@@ -336,6 +409,10 @@ rx, ry, imm coding = iiyyxx
 0x20 NOT rx
   Does bitwise not (~rx), store result to ry or rx if ry not defined
 
+0x21 PUSH rx, ry, imm
+  Push value of ry to stack defined in rx
+0x22 POP rx, ry, imm
+  Pop value to register ry from stack defined in rx
 
 0x30 B imm
   Branch to location imm
@@ -349,6 +426,13 @@ rx, ry, imm coding = iiyyxx
   Increase PC by imm if value rx != ry
 0x35 BLE rx, ry, imm
   Branch long if ry is zero, target address = rx + imm
+0x3a BSUBi imm
+  Branch to subprocess defined by imm, save return address to return register
+0x3a BSUB rx, ry, imm
+  Branch to subprocess, save return address to return register
+    rx + imm = subprocess address
+0x3c BRET
+  Return from a subprocess
 
 0x40 CO rx, ry, imm
   Co-processor query call, will write:

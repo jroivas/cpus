@@ -9,6 +9,7 @@ class Opcodes:
         0x05: 'MOV',
         0x06: 'MOVi',
         0x07: 'SWP',
+        0x0F: 'INTVEC',
         0x10: 'ADD',
         0x11: 'SUB',
         0x12: 'MUL',
@@ -26,6 +27,9 @@ class Opcodes:
         0x33: 'BE',
         0x34: 'BNE',
         0x35: 'BLE',
+        0x3A: 'BSUBi',
+        0x3B: 'BSUB',
+        0x3C: 'BRET',
         0xFF: 'STOP'
         }
 

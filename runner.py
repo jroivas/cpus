@@ -2,7 +2,7 @@
 
 import sys
 
-from primitives import CPUMem
+from primitives import Mem
 from primitives import ALU
 from cpus import RISC1
 from io import Terminal
@@ -22,7 +22,7 @@ def moveToMem(mem, data):
 def main():
     # 10k
     data = load(sys.argv[1])
-    mainmem = CPUMem(1024*10)
+    mainmem = Mem(1024*10)
     moveToMem(mainmem, data)
 
     term = Terminal()

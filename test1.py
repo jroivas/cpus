@@ -2,7 +2,7 @@
 
 import sys
 
-from primitives import CPUMem
+from primitives import Mem
 from primitives import ALU
 from cpus import RISC1
 from io import Terminal
@@ -72,7 +72,7 @@ def program(mem):
 
 def main():
     # 10k
-    mainmem = CPUMem(1024*10)
+    mainmem = Mem(1024*10)
     term = Terminal()
     term.setBase(0x8010)
     mainmem.addSpecial(0x8000, None, term.setControl)

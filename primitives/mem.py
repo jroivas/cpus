@@ -1,6 +1,6 @@
 import math
 
-class CPUMem:
+class Mem:
     """ Contains main memory for CPU
     """
     
@@ -30,7 +30,7 @@ class CPUMem:
         @param handler_get Callback for get
         @param handler_set Callback for set
 
-        >>> m = CPUMem(100)
+        >>> m = Mem(100)
         >>> class TestIO:
         ...  def __init__(self):
         ...   self.vals = {}
@@ -118,7 +118,7 @@ class CPUMem:
         @param data data
         @param size Maximum data length in bytes
 
-        >>> m = CPUMem(100)
+        >>> m = Mem(100)
         >>> m.setData(4, 0x123456)
         >>> print "%x" % m.getData(4, 4)
         123456
@@ -158,14 +158,14 @@ class CPUMem:
         @param pos Index
         @param data Data to set
 
-        >>> m = CPUMem(100)
+        >>> m = Mem(100)
         >>> m.setRaw(0, 100)
         >>> m.setRaw(1, 42)
         >>> m.getRaw(0)
         100
         >>> m.getRaw(1)
         42
-        >>> m2 = CPUMem()
+        >>> m2 = Mem()
         >>> m2.setRaw(0, 100)
         >>> m2.setRaw(1, 200)
         >>> m2.setData(2, 300)
@@ -186,7 +186,7 @@ class CPUMem:
         IndexError: Given memory position is invalid: 2010, max size: ...
         >>> m.setRaw(9, 10)
         >>> m.setRaw(11, 42)
-        >>> m2 = CPUMem()
+        >>> m2 = Mem()
         >>> m2.subMemory(m, 9)
         >>> print m2.getRaw(0)
         10
@@ -194,7 +194,7 @@ class CPUMem:
         0
         >>> print m2.getRaw(2)
         42
-        >>> m3 = CPUMem(10)
+        >>> m3 = Mem(10)
         >>> m3.subMemory(m, 0)
         >>> print m3.getRaw(0)
         100

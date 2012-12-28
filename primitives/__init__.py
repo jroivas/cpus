@@ -1,4 +1,7 @@
-from mem import CPUMem
+from mem import Mem
 from alu import ALU
+from intvec import IntVec
 
-__all__ = [ 'ALU', 'CPUMem' ]
+__all__ = [ 'ALU',
+        'Mem',
+        'IntVec' ]
