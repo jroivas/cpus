@@ -11,6 +11,7 @@ class RISC1:
         self.regs = {}
         self.intvec = None
         self.opcodes = Opcodes()
+        self.tick = 0
         for num in xrange(255):
             self.regs['r%s' % (num)] = 0
 
@@ -22,6 +23,7 @@ class RISC1:
         self.retreg = 'r44'
 
     def fetch(self):
+        self.tick += 1
         inst = self.mem.getData(self.regs[self.pc], self.wordsize)
         self.regs[self.pc] += self.wordsize
         return inst
@@ -352,15 +354,16 @@ class RISC1:
         if handler is not None:
             pass
 
-    def start(self, verbose=False):
+    #def start(self, verbose=False):
+    def start(self, verbose=True):
         while True:
             inst = self.fetch()
             (op, imm) = self.decode(inst)
             if verbose:
                 if (op in self.opcodes.opcodes and self.opcodes.opcodes[op][-1] == 'i') or op == self.opcodes.rev_opcodes['B']:
-                    print ("[PC %s] %s %s" % (self.regs[self.pc], op, imm))
+                    print ("%s [PC %s] %s %s" % (self.tick, self.regs[self.pc], op, imm))
                 else:
-                    print ("[PC %s] %s %s" % (self.regs[self.pc], op, self.solveRegNames(imm)))
+                    print ("%s [PC %s] %s %s" % (self.tick, self.regs[self.pc], op, self.solveRegNames(imm)))
 
             if op == self.opcodes.rev_opcodes['STOP']:
                 break
