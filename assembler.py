@@ -60,6 +60,12 @@ class Assembly:
         index = 0
         for line in data:
             line = line.strip()
+            if not line:
+                index += 1
+                continue
+            if line[0] == '#':
+                index += 1
+                continue
             if ':' in line:
                 tmp = line.split(':')
                 if tmp:
@@ -77,6 +83,12 @@ class Assembly:
         pc = 0
         for line in data:
             line = line.strip()
+            if not line:
+                index += 1
+                continue
+            if line[0] == '#':
+                index += 1
+                continue
             if ':' in line:
                 tmp = line.split(':')
                 if tmp:
@@ -87,7 +99,7 @@ class Assembly:
 
             tmp = line.split()
             if tmp:
-                cmd = tmp[0]
+                cmd = tmp[0].upper()
                 rest = ' '.join(tmp[1:])
                     
                 if cmd in self.opcodes.rev_opcodes:
@@ -153,6 +165,8 @@ class Assembly:
                 lab = self.getLabel(pars, labels)
                 if lab is not None:
                     item['params'] = lab['pos']
+                elif pars == '.':
+                    item['params'] = item['pos']
             else:
                 newpars = []
                 for reg in pars: 

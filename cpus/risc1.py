@@ -1,6 +1,7 @@
 from opcodes import Opcodes
 from primitives import IntVec
 from primitives import Stack
+import time
 
 class RISC1:
     wordsize = 4
@@ -9,9 +10,11 @@ class RISC1:
         self.mem = mem
         self.alu = alu
         self.regs = {}
-        self.intvec = None
+        #self.intvec = None
         self.opcodes = Opcodes()
-        self.tick = 0
+        self.cycle = 0
+        self.interrupt = []
+        self.inthandler = None
         for num in xrange(255):
             self.regs['r%s' % (num)] = 0
 
@@ -21,14 +24,17 @@ class RISC1:
         self.stackreg = 'r43'
         # Return register
         self.retreg = 'r44'
+        self.intvec = IntVec()
+        self.intvec.read(self.mem, 0, self.wordsize)
 
     def fetch(self):
-        self.tick += 1
+        self.cycle += 1
         inst = self.mem.getData(self.regs[self.pc], self.wordsize)
         self.regs[self.pc] += self.wordsize
         return inst
 
     def decode(self, inst):
+        self.cycle += 1
         opcode = inst & 0xFF
         imm = (inst >> 8)
         return (opcode, imm)
@@ -113,6 +119,9 @@ class RISC1:
             self.store(rimm, self.regs[ry])
             handled = True
 
+        if handled:
+            self.cycle += 3
+
         return handled
 
     def handleMov(self, op, imm):
@@ -140,6 +149,8 @@ class RISC1:
                 self.regs[ry] = tmp + imm
                 handled = True
 
+        if handled:
+            self.cycle += 2
         return handled
 
     def handleBasicALU(self, op, imm):
@@ -160,6 +171,8 @@ class RISC1:
             self.regs['r0'] += self.alu.mod(*self.solveValues(imm))
             handled = True
 
+        if handled:
+            self.cycle += 1
         return handled
 
     def handleBitwiseALU(self, op, imm):
@@ -207,15 +220,19 @@ class RISC1:
                 self.regs[target] = self.alu.b_not(rx)
                 handled = True
 
+        if handled:
+            self.cycle += 1
+
         return handled
 
     def handleBranching(self, op, imm):
         handled = False
 
         if op == self.opcodes.rev_opcodes['B']:
-            print "Branching from %s" % (self.regs[self.pc])
+            #print "Branching from %s" % (self.regs[self.pc])
             self.regs[self.pc] = imm
-            print "Branching to %s" % (imm)
+            #time.sleep(1)
+            #print "Branching to %s" % (imm)
             handled = True
         elif op == self.opcodes.rev_opcodes['BZ']:
             if self.regs['r0'] == 0:
@@ -260,6 +277,9 @@ class RISC1:
         elif op == self.opcodes.rev_opcodes['BRET']:
             self.regs[self.pc] = self.regs[self.retreg]
 
+        if handled:
+            self.cycle += 5
+
         return handled
 
     def illegalInstruction(self, op, imm):
@@ -285,6 +305,12 @@ class RISC1:
                 flags = self.regs[ry]
                 self.intvec.setFlags(flags)
                 handled = True
+        elif op == self.opcodes.rev_opcodes['SETI']:
+            self.intvec.setFlags(1)
+            handled = True
+        elif op == self.opcodes.rev_opcodes['CLRI']:
+            self.intvec.setFlags(0)
+            handled = True
 
         return handled
 
@@ -346,30 +372,65 @@ class RISC1:
         self.regs[self.pc] = tmp['pc']
         self.regs[self.stackreg] = tmp['stack']
 
-    def raiseInterrupt(self, num):
+    def raiseInterrupt(self, intnum):
         if self.intvec is None:
             return
+    
+        if not self.intvec.isEnabled():
+            return
 
-        handler = self.intvec.getHandler(num)
+        self.intvec.disable()
+        self.interrupt.append(intnum)
+        #print "int", self.interrupt
+
+    def handleInterrupts(self):
+        if not self.interrupt:
+            return
+        intnum = self.interrupt[0]
+        self.interrupt = self.interrupt[1:]
+
+        handler = self.intvec.getHandler(intnum)
         if handler is not None:
-            pass
+            #mystate = self.saveState()
 
-    #def start(self, verbose=False):
-    def start(self, verbose=True):
+            self.regs[self.retreg] = self.regs[self.pc]
+
+            self.regs[self.pc] = handler
+            #handler()
+            #self.loadState(mystate)
+
+    def returnInterrupt(self):
+        self.regs[self.pc] = self.regs[self.retreg]
+
+        self.intvec.enable()
+
+    def start(self, verbose=False):
+    #def start(self, verbose=True):
         while True:
+            if self.interrupt is not None:
+                self.handleInterrupts()
+
             inst = self.fetch()
             (op, imm) = self.decode(inst)
             if verbose:
                 if (op in self.opcodes.opcodes and self.opcodes.opcodes[op][-1] == 'i') or op == self.opcodes.rev_opcodes['B']:
-                    print ("%s [PC %s] %s %s" % (self.tick, self.regs[self.pc], op, imm))
+                    print ("%s [PC %s] %s %s" % (self.cycle, self.regs[self.pc], op, imm))
                 else:
-                    print ("%s [PC %s] %s %s" % (self.tick, self.regs[self.pc], op, self.solveRegNames(imm)))
+                    print ("%s [PC %s] %s %s" % (self.cycle, self.regs[self.pc], op, self.solveRegNames(imm)))
 
             if op == self.opcodes.rev_opcodes['STOP']:
                 break
 
+            handled = False
+
+            # Are we returning from an interrupt?
+            if op == self.opcodes.rev_opcodes['IRET']:
+                self.returnInterrupt()
+                handled = True
+
             ## Store/Load
-            handled = self.handleStoreLoad(op, imm)
+            if not handled:
+                handled = self.handleStoreLoad(op, imm)
 
             ## MOV/SWP
             if not handled:
@@ -437,7 +498,7 @@ LOAD64 rx, ry, imm
    rx + imm = Address of first instruction
    ry = Address of process structure (see Appendix A)
 0x0F INTVEC rx, ry, imm
-  Program interrupt vector
+  Program interrupt vector, by default read from position 0
    rx + imm = Address of interrupt vector or 0 == no change
    ry = Interrupt flags (enable/disable/etc)
 
@@ -481,13 +542,19 @@ LOAD64 rx, ry, imm
   Increase PC by imm if value rx != ry
 0x35 BLE rx, ry, imm
   Branch long if ry is zero, target address = rx + imm
-0x3a BSUBi imm
+0x3A BSUBi imm
   Branch to subprocess defined by imm, save return address to return register
-0x3a BSUB rx, ry, imm
+0x3B BSUB rx, ry, imm
   Branch to subprocess, save return address to return register
     rx + imm = subprocess address
-0x3c BRET
+0x3C BRET
   Return from a subprocess
+0x3D IRET
+  Return from an interrupt
+0x3E SETI
+  Turn interrupts on
+0x3F CLRI
+  Turn interrupts off
 
 0x40 CO rx, ry, imm
   Co-processor query call, will write:

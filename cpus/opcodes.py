@@ -32,6 +32,9 @@ class Opcodes:
         0x3A: 'BSUBi',
         0x3B: 'BSUB',
         0x3C: 'BRET',
+        0x3D: 'IRET',
+        0x3E: 'SETI',
+        0x3F: 'CLRI',
         0xFF: 'STOP'
         }
 
