@@ -37,7 +37,7 @@ def main():
         mainmem.addSpecial(0x8010 + i, term.getData, term.setData)
 
     cpu = RISC1(mainmem, ALU())
-    clock = Clock(hz=1000, callfunc=cpu.raiseInterrupt, params=1)
+    clock = Clock(hz=100, callfunc=cpu.raiseInterrupt, params=1)
     clock.start()
     cpu.start()
     clock.stop()
