@@ -21,6 +21,8 @@ class Opcodes:
         0x18: 'OR',
         0x19: 'XOR',
         0x20: 'NOT',
+        0x21: 'PUSH',
+        0x22: 'POP',
         0x30: 'B',
         0x31: 'BZ',
         0x32: 'BNZ',

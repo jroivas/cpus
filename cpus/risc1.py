@@ -1,5 +1,6 @@
 from opcodes import Opcodes
 from primitives import IntVec
+from primitives import Stack
 
 class RISC1:
     wordsize = 4
@@ -285,6 +286,52 @@ class RISC1:
 
         return handled
 
+    def handleStack(self, op, imm):
+        handled = False
+        if op == self.opcodes.rev_opcodes['PUSH']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            if rx is None:
+                dest = self.stackreg
+            else:
+                dest = rx
+
+            if ry is None:
+                data = 0
+            else:
+                data = self.regs[ry]
+
+            if imm is None:
+                imm = 0
+            data += imm
+
+            stack = Stack(self.regs[dest], self.mem, self.wordsize)
+            stack.push(data)
+            self.regs[dest] = stack.getPos()
+            del stack
+
+            handled = True
+        elif op == self.opcodes.rev_opcodes['POP']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            if rx is None:
+                dest = self.stackreg
+            else:
+                dest = rx
+
+            if imm is None:
+                imm = 0
+
+            stack = Stack(self.regs[dest], self.mem, self.wordsize)
+            data = stack.pop()
+            self.regs[dest] = stack.getPos()
+            del stack
+
+            if ry is not None:
+                self.regs[ry] = data + imm
+
+            handled = True
+
+        return handled
+
     def saveState(self):
         tmp = {}
         tmp['pc'] = self.regs[self.pc]
@@ -335,8 +382,13 @@ class RISC1:
             if not handled:
                 handled = self.handleBranching(op, imm)
 
+            # Interrupt vector
             if not handled:
                 handled = self.handleIntvec(op, imm)
+
+            # Stack
+            if not handled:
+                self.handleStack(op, imm)
 
             if not handled:
                 self.illegalInstruction(op, imm)
@@ -410,9 +462,9 @@ LOAD64 rx, ry, imm
   Does bitwise not (~rx), store result to ry or rx if ry not defined
 
 0x21 PUSH rx, ry, imm
-  Push value of ry to stack defined in rx
+  Push value of ry+imm to stack defined in rx or in case rx==0 use r43
 0x22 POP rx, ry, imm
-  Pop value to register ry from stack defined in rx
+  Pop value+imm to register ry from stack defined in rx or in case rx==0 use r43
 
 0x30 B imm
   Branch to location imm

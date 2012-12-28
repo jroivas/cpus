@@ -7,6 +7,31 @@ class Stack:
         self.size = None
         self.wordsize = wordsize
 
+    def getPos(self):
+        return self.pos
+
+    def relocate(self, pos):
+        """ Relocate stack
+
+        >>> from primitives import Mem
+        >>> mymem = Mem(100)
+        >>> mymem.setRaw(21, 0xFF)
+        >>> s = Stack(20, mymem, 4)
+        >>> s.push(1)
+        >>> s.push(2)
+        >>> s.push(3)
+        >>> s.push(4)
+        >>> s.pop()
+        4
+        >>> s.relocate(12)
+        >>> s.pop()
+        2
+        >>> s.pop()
+        1
+        """
+        self.base = pos
+        self.pos = pos
+
     def setSize(self, size):
         self.size = size
 
