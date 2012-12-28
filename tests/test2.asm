@@ -1,8 +1,8 @@
 # First here's the interrupt vector
-B start
-B timer
-B .
-B .
+B start   # Initial/startup handler
+B timer   # Timer/IRQ handler
+B .       # Empty handler
+B .       # Empty handler
 
 # Make some initializations
 start:

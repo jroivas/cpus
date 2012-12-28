@@ -21,10 +21,6 @@ class Assembly:
 
         return data
 
-    def parse(self, data):
-        for line in data:
-            print line
-
     def getLabels(self, data):
         labels = {}
         index = 0
@@ -63,9 +59,9 @@ class Assembly:
             if not line:
                 index += 1
                 continue
-            if line[0] == '#':
-                index += 1
-                continue
+            if '#' in line:
+                pos = line.index('#')
+                line = line[:pos].strip()
             if ':' in line:
                 tmp = line.split(':')
                 if tmp:
@@ -86,9 +82,9 @@ class Assembly:
             if not line:
                 index += 1
                 continue
-            if line[0] == '#':
-                index += 1
-                continue
+            if '#' in line:
+                pos = line.index('#')
+                line = line[:pos].strip()
             if ':' in line:
                 tmp = line.split(':')
                 if tmp:
