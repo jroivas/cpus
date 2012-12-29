@@ -94,25 +94,25 @@ class RISC1:
     def handleLoadStoreXBits(self, loadorstore, imm, size):
         (rx, ry, imm) = self.solveRegNames(imm)
         rimm = 0
-        if rx is not None:
-            rimm = self.regs[rx]
-        if imm is not None:
-            rimm += imm
-        if ry is None:
-            ry = 'r0'
 
         if loadorstore == 'load':
-            if size == 8:
-                self.regs[ry] = self.load(rimm, 4)
-                self.regs[rx] = self.load(rimm + 4, 4)
-            else:
-                self.regs[ry] = self.load(rimm, size)
+            if ry is not None:
+                rimm = self.regs[ry]
+            #if size == 8:
+            #    self.regs[rx] = self.load(rimm, 4)
+            #    self.regs[ry] = self.load(rimm + 4, 4)
+            #else:
+            self.regs[rx] = self.load(rimm, size)
         elif loadorstore == 'store':
-            if size == 8:
-                self.store(rimm, self.regs[ry], 4)
-                self.store(rimm + 4, self.regs['r0'], 4)
-            else:
-                self.store(rimm, self.regs[ry], size)
+            if ry is None:
+                ry = 'r0'
+            if rx is not None:
+                rimm = self.regs[rx]
+            #if size == 8:
+            #    self.store(rimm, self.regs[ry], 4)
+            #    self.store(rimm + 4, self.regs['r0'], 4)
+            #else:
+            self.store(rimm, self.regs[ry], size)
 
     def handleLoad(self, imm, size):
         self.handleLoadStoreXBits('load', imm, size)
@@ -149,9 +149,9 @@ class RISC1:
         elif op == self.opcodes.rev_opcodes['LOAD32']:
             self.handleLoad(imm, 4)
             handled = True
-        elif op == self.opcodes.rev_opcodes['LOAD64']:
-            self.handleLoad(imm, 8)
-            handled = True
+        #elif op == self.opcodes.rev_opcodes['LOAD64']:
+        #    self.handleLoad(imm, 8)
+        #    handled = True
         elif op == self.opcodes.rev_opcodes['STORE8']:
             self.handleStore(imm, 1)
             handled = True
@@ -161,9 +161,9 @@ class RISC1:
         elif op == self.opcodes.rev_opcodes['STORE32']:
             self.handleStore(imm, 4)
             handled = True
-        elif op == self.opcodes.rev_opcodes['STORE64']:
-            self.handleStore(imm, 8)
-            handled = True
+        #elif op == self.opcodes.rev_opcodes['STORE64']:
+        #    self.handleStore(imm, 8)
+        #    handled = True
         elif op == self.opcodes.rev_opcodes['LOADADDRi']:
             self.regs['r0'] = imm
             handled = True
@@ -541,21 +541,21 @@ rx, ry, imm coding = iiyyxx
 0x06 STORE32i imm
   Store 32 bit value from r0 to memory location imm
 0x07 LOAD8 rx, ry
-  Load 8 bit value from rx memory location to ry/r0
+  Load 8 bit value from ry memory location to rx/r0
 0x08 LOAD16 rx, ry
-  Load 16 bit value from rx memory location to ry/r0
+  Load 16 bit value from ry memory location to rx/r0
 0x09 LOAD32 rx, ry
-  Load 32 bit value from rx memory location to ry/r0
-0x0A LOAD64 rx, ry
-  Load 64 bit value from rx memory location to ry/r0 = low 32 bit, rx = high 32 bit
+  Load 32 bit value from ry memory location to rx/r0
+#0x0A LOAD64 rx, ry
+#  Load 64 bit value from ry memory location to rx/r0 = low 32 bit, ry = high 32 bit
 0x0B STORE8 rx, ry
   Store 8 bit value to rx memory location from ry/r0
 0x0C STORE16 rx, ry
   Store 16 bit value to rx memory location from ry/r0
 0x0D STORE32 rx, ry
   Store 32 bit value to rx memory location from ry/r0
-0x0E STORE64 rx, ry, imm
-  Store 64 bit value to rx memory location from ry/r0 = low 32 bit, r0 = high 32 bit
+#0x0E STORE64 rx, ry, imm
+#  Store 64 bit value to rx memory location from ry/r0 = low 32 bit, r0 = high 32 bit
 0x0F LOADADDR imm
   Load address of immediate to r0
 

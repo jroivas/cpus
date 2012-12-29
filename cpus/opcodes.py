@@ -11,11 +11,11 @@ class Opcodes:
         0x07: 'LOAD8',
         0x08: 'LOAD16',
         0x09: 'LOAD32',
-        0x0A: 'LOAD64',
+        #0x0A: 'LOAD64',
         0x0B: 'STORE8',
         0x0C: 'STORE16',
         0x0D: 'STORE32',
-        0x0E: 'STORE64',
+        #0x0E: 'STORE64',
         0x0F: 'LOADADDRi',
 
         0x23: 'MOV',
