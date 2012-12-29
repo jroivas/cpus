@@ -18,6 +18,18 @@ class Mem:
         self.reset()
         self._specials = {}
 
+    def append(self, mem):
+        """ Append another memory instance to this one
+        """
+        #self._size += mem.getSize()
+        self._size += mem._size
+        self._data += mem._data
+
+    def getSize(self):
+        """ Get memory size
+        """
+        return self._size, len(self._data)
+
     def reset(self):
         """ Reset memory
         Initializes memory to given size

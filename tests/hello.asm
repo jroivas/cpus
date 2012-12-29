@@ -1,6 +1,8 @@
+.base 0x1000
 .code
 	# Move location of text to r1
-	mov r1, 0, text
+	LOADADDRi text
+	mov r1, r0
 	mov r9, 0, 0
 	# Load video memory location to r0 and...
 	LOAD32i vidmem
@@ -42,12 +44,13 @@ out:
 	# Stop execution
 	STOP
 
-.data
-	dd 0x1234
 vidctrl:
-	#dd 0x8000
+	dd 0x8000
 vidmem:
 	dd 0x8010
+
+.data
+	dd 0x1234
 text:
 	dt "Hello World!"
 num:

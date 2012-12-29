@@ -475,9 +475,9 @@ class RISC1:
             (op, imm) = self.decode(inst)
             if verbose:
                 if (op in self.opcodes.opcodes and self.opcodes.opcodes[op][-1] == 'i') or op == self.opcodes.rev_opcodes['B']:
-                    print ("[PC %s] %s %s" % (self.regs[self.pc], op, imm))
+                    print ("[PC %4s] %3s %s %s" % (self.regs[self.pc], op, self.opcodes.opcodes[op], imm))
                 else:
-                    print ("[PC %s] %s %s" % (self.regs[self.pc], op, self.solveRegNames(imm)))
+                    print ("[PC %4s] %3s %s %s" % (self.regs[self.pc], op, self.opcodes.opcodes[op], self.solveRegNames(imm)))
 
             if op == self.opcodes.rev_opcodes['STOP']:
                 break

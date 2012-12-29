@@ -63,7 +63,11 @@ class Assembly:
         pc = 0
         dpc = 0
         index = 0
+        base = 0
         mode = 'code'
+
+        ## FIXME Goes thorough the code three times,
+        ## need a better and cleaner implementation
         for line in data:
             line = line.strip()
             if not line:
@@ -74,6 +78,10 @@ class Assembly:
                 continue
             elif line == '.data':
                 mode = 'data'
+                continue
+            elif line[:5] == '.base':
+                b = line[6:]
+                base = self.parseImmediate(b)
                 continue
 
             if '#' in line:
@@ -90,13 +98,114 @@ class Assembly:
                     if mode == 'code':
                         labels[label] = { 'value': line, 'line': index, 'pos': pc }
                     elif mode == 'data':
-                        labels[label] = { 'value': line, 'line': index, 'pos': dpc }
+                        labels[label] = { 'value': line, 'line': index, 'pos': base + dpc }
+            datasize = self.wordsize
+            tmp = line.split()
+            if tmp:
+                ucmd = tmp[0].upper()
+                rest = tmp[1:]
+                if len(ucmd) == 2 and ucmd[0] == 'D':
+                    if ucmd[1] == 'B':
+                        datasize = 1
+                    elif ucmd[1] == 'W':
+                        datasize = 2
+                    elif ucmd[1] == 'D':
+                        datasize = 4
+                    elif ucmd[1] == 'Q':
+                        datasize = 8
+                    elif ucmd[1] == 'T':
+                        datasize = 0
+
+                    if datasize == 0:
+                        string = False
+                        dataval = bytearray()
+                        for c in rest:
+                            if not string and c == '"':
+                                string = True
+                            elif string and c == '"':
+                                datasize += 1
+                                dataval.append(0)
+                                string = False
+                            elif string:
+                                datasize += 1
+                                dataval.append(c)
             tmp = line.split()
             if tmp:
                 if mode == 'code':
-                    pc += self.wordsize
+                    pc += datasize
                 elif mode == 'data':
-                    dpc += self.wordsize
+                    dpc += datasize
+            index += 1
+
+        if base == 0:
+            base = pc
+
+        pc = 0
+        dpc = 0
+        for line in data:
+            line = line.strip()
+            if not line:
+                index += 1
+                continue
+            if line == '.code':
+                mode = 'code'
+                continue
+            elif line == '.data':
+                mode = 'data'
+                continue
+            elif line[:5] == '.base':
+                continue
+            if '#' in line:
+                pos = line.index('#')
+                line = line[:pos].strip()
+            if ':' in line:
+                tmp = line.split(':')
+                if tmp:
+                    label = tmp[0]
+                    if len(tmp) > 1:
+                        line = ':'.join(tmp[1:])
+                    else:
+                        line = ''
+                    #if mode == 'code':
+                    #    labels[label] = { 'value': line, 'line': index, 'pos': pc }
+                    if mode == 'data':
+                        labels[label] = { 'value': line, 'line': index, 'pos': base + dpc }
+            datasize = self.wordsize
+            tmp = line.split()
+            if tmp:
+                ucmd = tmp[0].upper()
+                rest = tmp[1:]
+                if len(ucmd) == 2 and ucmd[0] == 'D':
+                    if ucmd[1] == 'B':
+                        datasize = 1
+                    elif ucmd[1] == 'W':
+                        datasize = 2
+                    elif ucmd[1] == 'D':
+                        datasize = 4
+                    elif ucmd[1] == 'Q':
+                        datasize = 8
+                    elif ucmd[1] == 'T':
+                        datasize = 0
+
+                    if datasize == 0:
+                        string = False
+                        dataval = bytearray()
+                        for c in rest:
+                            if not string and c == '"':
+                                string = True
+                            elif string and c == '"':
+                                datasize += 1
+                                dataval.append(0)
+                                string = False
+                            elif string:
+                                datasize += 1
+                                dataval.append(c)
+            tmp = line.split()
+            if tmp:
+                if mode == 'code':
+                    pc += datasize
+                elif mode == 'data':
+                    dpc += datasize
             index += 1
 
         pc = 0
@@ -112,6 +221,8 @@ class Assembly:
                 continue
             elif line == '.data':
                 mode = 'data'
+                continue
+            elif line[:5] == '.base':
                 continue
 
             if '#' in line:
@@ -135,6 +246,7 @@ class Assembly:
                     cmd = self.opcodes.aliases[cmd]
                     ucmd = cmd.upper()
 
+                datasize = 4
                 if ucmd in self.opcodes.rev_upper_opcodes:
                     opcode = self.opcodes.rev_upper_opcodes[ucmd]
                 elif len(cmd) == 2 and ucmd[0] == 'D':
@@ -179,27 +291,33 @@ class Assembly:
                         else:
                             opcode = int(cmd)
                     except:
-                        opcode = -1 # FIXME
+                        opcode = 'invalid' # FIXME
 
                 if 'i' == cmd[-1] or cmd == 'B':
                     param = self.parseImmediate(rest)
+                elif opcode == 'data':
+                    param = self.parseImmediate(rest)
                 else:
                     param = self.parseRegs(rest)
+
                 if mode == 'code':
-                    item = {'opcode': opcode, 'params': param, 'cmd': cmd, 'pos': pc}
+                    item = {'opcode': opcode, 'params': param, 'cmd': cmd, 'pos': pc, 'datasize': datasize}
                     stub.append(item)
                 elif mode == 'data':
                     if opcode == 'data':
-                        item = {'size': datasize, 'pos': dpc, 'val': dataval}
+                        item = {'size': datasize, 'pos': base + dpc, 'val': dataval}
                         datasect.append(item)
                     else:
                         datasize = 0
 
                 if mode == 'code':
-                    pc += self.wordsize
+                    if opcode == 'data':
+                        pc += datasize
+                    else:
+                        pc += self.wordsize
                 elif mode == 'data':
                     dpc += datasize
-        return (stub, datasect, labels)
+        return (stub, datasect, labels, base)
 
     def getLabel(self, name, labels):
         for lab in labels:
@@ -275,6 +393,8 @@ class Assembly:
 
         x = x & 0xFF
         y = (y & 0xFF) << 8
+        if i != (i & 0xFF):
+            raise ValueError('Immediate value truncated: %x vs. %x' % (i, i & 0xFF) )
         i = (i & 0xFF) << 16
         return (x | y | i)
 
@@ -283,22 +403,37 @@ class Assembly:
         bytecode = []
         for item in stub:
             inst = item['opcode']
-            inst = inst & 0xFF
-
             pars = item['params']
-            if type(pars) == list:
-                imm = self.generateRegisters(pars)
-            else:
+            data = False
+            if inst == 'data':
+                data = True
                 imm = pars
+            else:
+                inst = inst & 0xFF
+
+                if type(pars) == list:
+                    imm = self.generateRegisters(pars)
+                else:
+                    imm = pars
+
             imm = imm & 0xFFFFFF
-            imm <<= 8
-            bytecode.append(inst)
-            code.append(inst | imm)
-            immcode = []
-            imm >>= 8
-            for i in xrange(self.wordsize-1):
-                immcode.append(imm & 0xFF)
+            if inst == 'data':
+                immcode = []
+                code.append(imm)
+                size = item['datasize']
+                while size > 0:
+                    immcode.append(imm & 0xFF)
+                    imm >>= 8
+                    size -= 1
+            else:
+                imm <<= 8
+                bytecode.append(inst)
+                code.append(inst | imm)
+                immcode = []
                 imm >>= 8
+                for i in xrange(self.wordsize-1):
+                    immcode.append(imm & 0xFF)
+                    imm >>= 8
             bytecode += immcode
         return (code, bytecode)
 
@@ -318,7 +453,7 @@ class Assembly:
             
         return bindata
 
-    def writeFile(self, fname, code, data):
+    def writeFile(self, fname, code, data, base=0):
         if os.path.isfile(fname):
             print ('WARNING: Overwriting %s' % fname)
         
@@ -326,7 +461,8 @@ class Assembly:
         for opcode in code:
             arr.append(opcode)
 
-        datapos = len(arr) + 4 + 4
+        header_size = 12
+        datapos = len(arr) + header_size
 
         header = bytearray()
         header.append('R')
@@ -337,7 +473,10 @@ class Assembly:
         for i in xrange(4):
             header.append(tmp & 0xFF)
             tmp >>= 8
-
+        tmp = base
+        for i in xrange(4):
+            header.append(tmp & 0xFF)
+            tmp >>= 8
         f = open(fname, 'wb')
         f.write(header)
         f.write(arr)
@@ -360,7 +499,9 @@ if __name__ == '__main__':
         print ('Can\'t read file: %s' % (fname))
         sys.exit(1)
 
-    (stub, data, labels) = ass.assemble(data)
+    (stub, data, labels, base) = ass.assemble(data)
+    print labels
+    print base
     print data
     stub = ass.solveLabels(stub, labels)
     print (stub)
@@ -379,7 +520,7 @@ if __name__ == '__main__':
             if i % 16 == 0:
                 binstr += '\n'
         print (binstr)
-        ass.writeFile(ofname, bytecode, bindata)
+        ass.writeFile(ofname, bytecode, bindata, base)
     else:
         print stub
         print code
