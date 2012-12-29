@@ -1,3 +1,4 @@
+.code
 # First here's the interrupt vector
 B start   # Initial/startup handler
 B timer   # Timer/IRQ handler

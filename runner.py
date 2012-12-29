@@ -10,9 +10,20 @@ from io import Terminal
 
 def load(fname):
     f = open(fname, 'rb')
+    header = f.read(8)
+    if header[:4] != 'RE01':
+        f.close()
+        return None
+    tmp = header[4:]
+    datapos = 0
+    for i in reversed(tmp):
+        datapos |= ord(i)
+        datapos <<= 8
+    datapos >>= 8
+    code = f.read(datapos - 8)
     data = f.read()
     f.close()
-    return data
+    return (code, data)
 
 def moveToMem(mem, data):
     i = 0
@@ -21,9 +32,12 @@ def moveToMem(mem, data):
         i += 1
 
 def main():
+    (code, data) = load(sys.argv[1])
+
+    codemem = Mem(len(code) + 4)
     # 10k
-    data = load(sys.argv[1])
-    mainmem = Mem(1024*10)
+    mainmem = Mem(1024)
+    moveToMem(codemem, code)
     moveToMem(mainmem, data)
 
     term = Terminal()
@@ -36,7 +50,7 @@ def main():
     for i in xrange(100):
         mainmem.addSpecial(0x8010 + i, term.getData, term.setData)
 
-    cpu = RISC1(mainmem, ALU())
+    cpu = RISC1(codemem, mainmem, ALU())
     clock = Clock(hz=1000, callfunc=cpu.raiseInterrupt, params=1)
     clock.start()
     cpu.start()

@@ -6,7 +6,8 @@ import time
 class RISC1:
     wordsize = 4
 
-    def __init__(self, mem, alu):
+    def __init__(self, code, mem, alu):
+        self.code = code
         self.mem = mem
         self.alu = alu
         self.regs = {}
@@ -25,11 +26,11 @@ class RISC1:
         # Return register
         self.retreg = 'r44'
         self.intvec = IntVec()
-        self.intvec.read(self.mem, 0, self.wordsize)
+        self.intvec.read(self.code, 0, self.wordsize)
 
     def fetch(self):
         self.cycle += 1
-        inst = self.mem.getData(self.regs[self.pc], self.wordsize)
+        inst = self.code.getData(self.regs[self.pc], self.wordsize)
         self.regs[self.pc] += self.wordsize
         return inst
 
@@ -114,10 +115,10 @@ class RISC1:
                 self.store(rimm, self.regs[ry], size)
 
     def handleLoad(self, imm, size):
-        self.handleLoadOrStoreXBits('load', imm, size)
+        self.handleLoadStoreXBits('load', imm, size)
 
-    def handleStrore(self, imm, size):
-        self.handleLoadOrStoreXBits('store', imm, size)
+    def handleStore(self, imm, size):
+        self.handleLoadStoreXBits('store', imm, size)
 
     def handleStoreLoad(self, op, imm):
         handled = False
@@ -162,6 +163,9 @@ class RISC1:
             handled = True
         elif op == self.opcodes.rev_opcodes['STORE64']:
             self.handleStore(imm, 8)
+            handled = True
+        elif op == self.opcodes.rev_opcodes['LOADADDRi']:
+            self.regs['r0'] = imm
             handled = True
 
         if handled:
@@ -301,7 +305,9 @@ class RISC1:
             (rx, ry, imm) = self.solveRegNames(imm)
             if rx is not None and ry is not None and imm is not None:
                 if self.regs[rx] == self.regs[ry]:
+                    print "Jump %s" % (self.regs[self.pc])
                     self.regs[self.pc] += imm
+                    print "Jumped %s" % (self.regs[self.pc])
                 handled = True
         elif op == self.opcodes.rev_opcodes['BNE']:
             (rx, ry, imm) = self.solveRegNames(imm)
@@ -550,6 +556,8 @@ rx, ry, imm coding = iiyyxx
   Store 32 bit value to rx memory location from ry/r0
 0x0E STORE64 rx, ry, imm
   Store 64 bit value to rx memory location from ry/r0 = low 32 bit, r0 = high 32 bit
+0x0F LOADADDR imm
+  Load address of immediate to r0
 
 0x10 ADD rx, ry, imm
   Do rx = rx + ry + imm, store result to rx

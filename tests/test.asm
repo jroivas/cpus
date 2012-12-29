@@ -1,3 +1,4 @@
+.code
 LOADi num
 MOV r1, r0, 0
 MOV r2, r1, 0
@@ -14,4 +15,6 @@ MOV r7, 0, 7
 
 STOP
 
-num: 42
+.data
+num:
+	dd 42
