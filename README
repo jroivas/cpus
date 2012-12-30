@@ -1,0 +1,28 @@
+Implementation of an hypothetical RISC processor.
+
+Includes:
+- Symbolic assembler for easy target code generation.
+- Emulator which emulates whole CPU and machine.
+- Extendable IO interfaces
+
+
+
+
+Quick start
+-----------
+
+
+First you need an application. There's some tests available, for example:
+
+$ cat tests/test.asm
+[ output of test.asm ]
+
+Next you need to make binary from that symbolic assembly code:
+
+$ ./assembler.py tests/test.asm test.bin
+
+This should generate test.bin, which is ready to run binary.
+
+$ ./runner.py test.bin
+
+Will run the binary and output some debug data.
