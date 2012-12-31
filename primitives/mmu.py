@@ -188,10 +188,20 @@ class MMU():
         True
         >>> u.virtToPhys(0x19000) == (0x2000 + 0x10000 + 0x1000)
         True
-        >>> u.virtToPhys(0x19001)
-        >>> u.virtToPhys(0x1A000)
+        >>> u.virtToPhys(0x19001) #doctest: +ELLIPSIS
+        Traceback (most recent call last):
+        ...
+        IndexError: No page mapped at virtual: 00019001
+        >>> u.virtToPhys(0x1A000) #doctest: +ELLIPSIS
+        Traceback (most recent call last):
+        ...
+        IndexError: No page mapped at virtual: 0001A000
         >>> u.virtToPhys(0x18fff) == (0x2000 + 0x10000 + 0xfff)
         True
+        >>> u.virtToPhys(0) #doctest: +ELLIPSIS
+        Traceback (most recent call last):
+        ...
+        IndexError: No page mapped at virtual: 00000000
         """
         for item in self._table:
             (a, b, c) = self.getRange(item)
@@ -199,33 +209,131 @@ class MMU():
                 index = (pos - a)
                 phys = c + index
                 return phys
-        return None
-
-        raise IndexError('Page not mapped!')
+        raise IndexError('No page mapped at virtual: %.8X' % (pos))
 
     def setData(self, pos, data, size=4):
+        """ Set data, if MMU enabled, solve physical locations first
+
+        >>> from primitives import Mem
+        >>> m = Mem(1024*100)
+        >>> u = MMU(m)
+        >>> # Page, virtual start at 24, size 4k (0x1000)
+        >>> m.setData(10, 0x00006100, 4)
+        >>> # Subtable, starts at phys 4k (0x1000)
+        >>> m.setData(14, 0x00001101, 4)
+        >>> # Page, virtual start at 32k, size 64k (0x10000)
+        >>> m.setData(18, 0x00008110, 4)
+        >>> # Page, virtual start at 96, size 4k (0x1000)
+        >>> m.setData(22, 0x00018100, 4)
+        >>> # Page at virtual 8k, size 4k (0x1000)
+        >>> m.setData(0x1000, 0x00002100, 4)
+        >>> # Page at virtual 1126k, size 1M 
+        >>> m.setData(0x1004, 0x00113120, 4)
+        >>> tmp = u.initialize(10, 4)
+        >>> # Paging is disabled, set data to phys 0x8000
+        >>> u.setData(0x8000, 56, 1)
+        >>> # Enable paging
+        >>> u.enable()
+        >>> # Paging is enabled so set data to virt 0x8000, which is 0x2000 in phys
+        >>> u.setData(0x8000, 42, 1)
+        >>> # Get memory contents at 0x8000 phys
+        >>> m.getData(0x8000, 1)
+        56
+        >>> # Get memory contents at 0x2000 phys
+        >>> m.getData(0x2000, 1)
+        42
+        """
         if self._enabled:
-            pass
+            self._mem.setData(self.virtToPhys(pos), data, size)
         else:
             self._mem.setData(pos, data, size)
 
     def getData(self, pos, size=1):
+        """ Get data, if MMU enabled, solve physical location first
+
+        >>> from primitives import Mem
+        >>> m = Mem(1024*100)
+        >>> u = MMU(m)
+        >>> # Page, virtual start at 24, size 4k (0x1000)
+        >>> m.setData(10, 0x00006100, 4)
+        >>> # Subtable, starts at phys 4k (0x1000)
+        >>> m.setData(14, 0x00001101, 4)
+        >>> # Page, virtual start at 32k, size 64k (0x10000)
+        >>> m.setData(18, 0x00008110, 4)
+        >>> # Page, virtual start at 96, size 4k (0x1000)
+        >>> m.setData(22, 0x00018100, 4)
+        >>> # Page at virtual 8k, size 4k (0x1000)
+        >>> m.setData(0x1000, 0x00002100, 4)
+        >>> # Page at virtual 1126k, size 1M 
+        >>> m.setData(0x1004, 0x00113120, 4)
+        >>> tmp = u.initialize(10, 4)
+        >>> # Paging is disabled, set data to phys 0x8000
+        >>> u.setData(0x8000, 56, 1)
+        >>> # Paging is disabled, set data to phys 0x100
+        >>> u.setData(0x100, 12345, 4)
+        >>> # Enable paging
+        >>> u.enable()
+        >>> # Paging is enabled so set data to virt 0x8000, which is 0x2000 in phys
+        >>> u.setData(0x8000, 42, 1)
+        >>> # Get memory contents at 0x8000 virt
+        >>> u.getData(0x8000, 1)
+        42
+        >>> # Get memory contents at 0x100 phys, 0x6000+0x100 virt
+        >>> u.getData(0x6000 + 0x100, 4)
+        12345
+        """
         if self._enabled:
-            pass
+            return self._mem.getData(self.virtToPhys(pos), size)
         else:
             return self._mem.getData(pos, size)
 
     def setRaw(self, pos, data):
+        """ Set one byte, if MMU enabled, solve physical location first
+
+        >>> from primitives import Mem
+        >>> m = Mem(1024*100)
+        >>> u = MMU(m)
+        >>> # Page, virtual start at 24, size 4k (0x1000)
+        >>> m.setData(10, 0x00006100, 4)
+        >>> tmp = u.initialize(10, 1)
+        >>> u.setRaw(0x100, 255)
+        >>> u.enable()
+        >>> u.setRaw(0x6001, 123)
+        >>> m.getRaw(0x100)
+        255
+        >>> m.getRaw(0x1)
+        123
+        """
         if self._enabled:
-            pass
+            self._mem.setRaw(self.virtToPhys(pos), data)
         else:
             self._mem.setRaw(pos, data)
 
     def getRaw(self, pos):
+        """ Get one byte, if MMU enabled, solve physical location first
+
+        >>> from primitives import Mem
+        >>> m = Mem(1024*100)
+        >>> u = MMU(m)
+        >>> # Page, virtual start at 24, size 4k (0x1000)
+        >>> m.setData(10, 0x00006100, 4)
+        >>> tmp = u.initialize(10, 1)
+        >>> u.setRaw(0x100, 255)
+        >>> u.enable()
+        >>> u.setRaw(0x6001, 123)
+        >>> m.getRaw(0x100)
+        255
+        >>> m.getRaw(0x1)
+        123
+        >>> u.getRaw(0x6001)
+        123
+        >>> u.getRaw(0x6000)
+        0
+        """
         if self._enabled:
-            pass
+            return self._mem.getRaw(self.virtToPhys(pos))
         else:
-            self._mem.getRaw(pos)
+            return self._mem.getRaw(pos)
         
     class Flags:
         def __init__(self, flags=0, solved=None):
