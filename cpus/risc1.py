@@ -1,6 +1,7 @@
 from opcodes import Opcodes
 from primitives import IntVec
 from primitives import Stack
+from primitives import MMU
 import time
 
 class RISC1:
@@ -9,6 +10,7 @@ class RISC1:
     def __init__(self, code, mem, alu):
         self.code = code
         self.mem = mem
+        self.mmu = MMU(mem)
         self.alu = alu
         self.regs = {}
         #self.intvec = None
@@ -43,12 +45,12 @@ class RISC1:
     def load(self, imm, size=None):
         if size is None:
             size = self.wordsize
-        return self.mem.getData(imm, size)
+        return self.mmu.getData(imm, size)
 
     def store(self, imm, data, size=None):
         if size is None:
             size = self.wordsize
-        self.mem.setData(imm, data, size)
+        self.mmu.setData(imm, data, size)
 
     def solveRegs(self, datas):
         x = datas & 0xff
@@ -78,7 +80,7 @@ class RISC1:
         if rx is not None:
             xval = self.regs[rx]
         if ry is not None:
-            xval = self.regs[ry]
+            yval = self.regs[ry]
         if imm is not None:
             immval = imm
 
@@ -89,7 +91,7 @@ class RISC1:
         for num in xrange(255):
             val = self.regs['r%s' % (num)]
             if val != 0:
-                print ("r%x: %s" % (num, val))
+                print ("%4s: %.8x" % ('r%x' % num, val))
 
     def handleLoadStoreXBits(self, loadorstore, imm, size):
         (rx, ry, imm) = self.solveRegNames(imm)
@@ -359,7 +361,7 @@ class RISC1:
                 if imm is not None:
                     pos += imm
                 self.intvec = IntVec()
-                self.intvec.read(self.mem, pos, self.wordsize)
+                self.intvec.read(self.mmu, pos, self.wordsize)
                 handled = True
 
             if ry is not None and self.intvec is not None:
@@ -371,6 +373,26 @@ class RISC1:
             handled = True
         elif op == self.opcodes.rev_opcodes['CLRI']:
             self.intvec.setFlags(0)
+            handled = True
+
+        return handled
+
+    def handleMMU(self, op, imm):
+        """ Check if we have intvec opcode.
+            If found, try to read and setup new Iterrupt Vector or setup new flags.
+        """
+        handled = False
+        if op == self.opcodes.rev_opcodes['MAP']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            if rx is not None and ry is not None:
+                pos = self.regs[rx]
+                size = self.regs[ry]
+                self.mmu.initialize(pos, size)
+            if imm is not None:
+                if imm & 0x1 == 0x1:
+                    self.mmu.enable()
+                if imm & 0x2 == 0x2:
+                    self.mmu.disable()
             handled = True
 
         return handled
@@ -393,7 +415,7 @@ class RISC1:
                 imm = 0
             data += imm
 
-            stack = Stack(self.regs[dest], self.mem, self.wordsize)
+            stack = Stack(self.regs[dest], self.mmu, self.wordsize)
             stack.push(data)
             self.regs[dest] = stack.getPos()
             del stack
@@ -409,7 +431,7 @@ class RISC1:
             if imm is None:
                 imm = 0
 
-            stack = Stack(self.regs[dest], self.mem, self.wordsize)
+            stack = Stack(self.regs[dest], self.mmu, self.wordsize)
             data = stack.pop()
             self.regs[dest] = stack.getPos()
             del stack
@@ -515,6 +537,10 @@ class RISC1:
             if not handled:
                 self.handleStack(op, imm)
 
+            # MMU / Mapping
+            if not handled:
+                handled = self.handleMMU(op, imm)
+
             if not handled:
                 self.illegalInstruction(op, imm)
 
@@ -594,11 +620,41 @@ rx, ry, imm coding = iiyyxx
   Swap value of registers ry and rx, add imm to both
 
 0x2D MAP rx, ry, imm
-  MMU map page
-   rx = virtual address for page start
-   ry = hw address (needs to be aligned to proper page size)
-        Last 4 bits tells page size:
-        (0 = no mapping, 1 = 1k, 2=4k, 3=16k, 4=64k, 5=256k, 6=512k, 7=1M, 8=4M, 9=16M, a=64M, b=256M, c=512M)
+  Define MMU page map table
+   rx = physical address for page start, can't be zero. If zero, just read immediate
+   ry = number of items in table
+   imm = 0x0 = no change, 0x1 enable paging, 0x2 disable paging
+  Table should contain mapping items like:
+    0x00006100 # Page, virtual start at 24, size 4k (0x1000)
+    0x00001101 # Subtable, starts at phys 4k (0x1000)
+    0x00008110 # Page, virtual start at 32k, size 64k (0x10000)
+    0x00018100 # Page, virtual start at 96, size 4k (0x1000)
+  Format is:
+    0xFFFFF000 == address, virtual in case of page, physical in case of subtable
+    0x???????1 == subtable,  0=page,              1=subtable
+    0x???????2 == execute,   0=no execute,        1=executable
+    0x???????4 == write,     0=no write,          1=writable
+    0x???????8 == userspace, 0=no access from us, 1=accessable
+    0x?????1?? == ok,        0=disabled,          1=in use
+    0x??????0? == 4k page
+    0x??????1? == 64k page
+    0x??????2? == 1M page
+    0x??????3? == 64M page
+            if flags & 0x1 == 0x1:
+                data['subtable'] = True
+            if flags & 0x2 == 0x2:
+                data['execute'] = True
+            if flags & 0x4 == 0x4:
+                data['write'] = True
+            if flags & 0x8 == 0x8:
+                data['userspace'] = True
+            if flags & 0x10 == 0x10:
+                data['size1'] = True
+            if flags & 0x20 == 0x20:
+                data['size2'] = True
+            if flags & 0x100 == 0x100:
+                data['ok'] = True
+  
 0x2E START rx, ry, imm
   Start a HW process
    rx + imm = Address of first instruction
