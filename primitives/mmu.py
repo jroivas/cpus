@@ -61,11 +61,12 @@ class MMU():
         >>> from primitives import Mem
         >>> m = Mem(1024*100)
         >>> u = MMU(m)
-        >>> # Subtable, starts at 4k
+        >>> # Subtable, starts at phys 4k
         >>> m.setData(10, 0x00001111, 4)
-        >>> # Page, starts at 32k, size 64k
+        >>> # Page, virtual start at 32k, size 64k
         >>> m.setData(14, 0x00008110, 4)
-        >>> m.setData(18, 0x00008100, 4)
+        >>> # Page, virtual start at 98k, size 4k
+        >>> m.setData(18, 0x00018100, 4)
         >>> for i in xrange(1023):
         ...   m.setData(0x1000 + i, 0)
         >>> # Page at 8k, size 4k
@@ -73,7 +74,7 @@ class MMU():
         >>> # Page at 12k, size 1M 
         >>> m.setData(0x1004, 0x00003120, 4)
         >>> u.initialize(10, 3)
-        [(8192, execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 4194304), (12288, execute=False,ok=True,size=1024,size1=False,size2=True,subtable=False,userspace=False,write=False, 4198400), (32768, execute=False,ok=True,size=64,size1=True,size2=False,subtable=False,userspace=False,write=False, 65536), (32768, execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 131072)]
+        [(8192, execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 4194304), (12288, execute=False,ok=True,size=1024,size1=False,size2=True,subtable=False,userspace=False,write=False, 4198400), (32768, execute=False,ok=True,size=64,size1=True,size2=False,subtable=False,userspace=False,write=False, 65536), (98304, execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 131072)]
         """
         entries = self.readTable(tablepos, tablesize)
         self._table = self.getEntries(entries)
@@ -85,7 +86,7 @@ class MMU():
         >>> from primitives import Mem
         >>> m = Mem(1024*100)
         >>> u = MMU(m)
-        >>> # Subtable, starts at 4k
+        >>> # Subtable, starts at phys 4k
         >>> m.setData(10, 0x00001111, 4)
         >>> # Page, starts at 32k, size 64k
         >>> m.setData(14, 0x00008110, 4)
@@ -149,17 +150,56 @@ class MMU():
     def getRange(self, item):
         addr = item[0]
         flags = item[1]
-        endaddr = addr + flags['size'] * 1024
-        return (addr, endaddr)
+        pos = item[2]
+        endaddr = addr + (flags['size'] * 1024)
+        return (addr, endaddr, pos)
 
     def virtToPhys(self, pos):
         """ Converts virtual memory location to physical
+
+        >>> from primitives import Mem
+        >>> m = Mem(1024*100)
+        >>> u = MMU(m)
+        >>> # Page, virtual start at 24, size 4k (0x1000)
+        >>> m.setData(10, 0x00006100, 4)
+        >>> # Subtable, starts at phys 4k (0x1000)
+        >>> m.setData(14, 0x00001101, 4)
+        >>> # Page, virtual start at 32k, size 64k (0x10000)
+        >>> m.setData(18, 0x00008110, 4)
+        >>> # Page, virtual start at 96, size 4k (0x1000)
+        >>> m.setData(22, 0x00018100, 4)
+        >>> # Page at virtual 8k, size 4k (0x1000)
+        >>> m.setData(0x1000, 0x00002100, 4)
+        >>> # Page at virtual 1126k, size 1M 
+        >>> m.setData(0x1004, 0x00113120, 4)
+        >>> u.initialize(10, 4)
+        [(24576, execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 0), (8192, execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 4096), (1126400, execute=False,ok=True,size=1024,size1=False,size2=True,subtable=False,userspace=False,write=False, 8192), (32768, execute=False,ok=True,size=64,size1=True,size2=False,subtable=False,userspace=False,write=False, 8192), (98304, execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 73728)]
+        >>> u.virtToPhys(0x8000) == (0x2000)
+        True
+        >>> u.virtToPhys(0x8000)
+        8192
+        >>> u.virtToPhys(0x8001)
+        8193
+        >>> u.virtToPhys(0x18000) == (0x2000 + 0x10000)
+        True
+        >>> u.virtToPhys(0x18000)
+        73728
+        >>> u.virtToPhys(0x18010) == (0x2000 + 0x10000 + 0x10)
+        True
+        >>> u.virtToPhys(0x19000) == (0x2000 + 0x10000 + 0x1000)
+        True
+        >>> u.virtToPhys(0x19001)
+        >>> u.virtToPhys(0x1A000)
+        >>> u.virtToPhys(0x18fff) == (0x2000 + 0x10000 + 0xfff)
+        True
         """
         for item in self._table:
-            (a, b) = self.getRange(item)
+            (a, b, c) = self.getRange(item)
             if a <= pos and pos <= b:
-                # TODO solve phy addr
-                return 0
+                index = (pos - a)
+                phys = c + index
+                return phys
+        return None
 
         raise IndexError('Page not mapped!')
 
