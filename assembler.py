@@ -293,7 +293,7 @@ class Assembly:
                     except:
                         opcode = 'invalid' # FIXME
 
-                if 'i' == cmd[-1] or cmd == 'B':
+                if 'i' == cmd[-1]:
                     param = self.parseImmediate(rest)
                 elif opcode == 'data':
                     param = self.parseImmediate(rest)

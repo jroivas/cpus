@@ -6,7 +6,7 @@ MOV r3, r1, 0
 ADD r3, 0, 1
 MOV r4, r0
 SHL r2, 0, 1
-B skip
+Bi skip
 
 MOV r6, 0, 5
 

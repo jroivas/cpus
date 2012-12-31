@@ -1,9 +1,9 @@
 .code
 # First here's the interrupt vector
-B start   # Initial/startup handler
-B timer   # Timer/IRQ handler
-B .       # Empty handler
-B .       # Empty handler
+Bi start   # Initial/startup handler
+Bi timer   # Timer/IRQ handler
+Bi .       # Empty handler
+Bi .       # Empty handler
 
 # Make some initializations
 start:
@@ -15,7 +15,7 @@ start:
 # Loop
 loop:
 	ADD r1, 0, 1
-	B loop
+	Bi loop
 
 # Timer handler
 timer:

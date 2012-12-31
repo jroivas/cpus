@@ -289,27 +289,43 @@ class RISC1:
     def handleBranching(self, op, imm):
         handled = False
 
-        if op == self.opcodes.rev_opcodes['B']:
-            #print "Branching from %s" % (self.regs[self.pc])
+        if op == self.opcodes.rev_opcodes['Bi']:
             self.regs[self.pc] = imm
-            #time.sleep(1)
-            #print "Branching to %s" % (imm)
             handled = True
-        elif op == self.opcodes.rev_opcodes['BZ']:
+        elif op == self.opcodes.rev_opcodes['B']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            if rx is not None:
+                self.regs[self.pc] = self.regs[rx]
+            handled = True
+        elif op == self.opcodes.rev_opcodes['BZi']:
             if self.regs['r0'] == 0:
                 self.regs[self.pc] = imm
             handled = True
-        elif op == self.opcodes.rev_opcodes['BNZ']:
+        elif op == self.opcodes.rev_opcodes['BZ']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            reg = 'r0'
+            if ry is not None:
+                reg = ry
+            if self.regs[reg] == 0:
+                self.regs[self.pc] = self.regs[rx]
+            handled = True
+        elif op == self.opcodes.rev_opcodes['BNZi']:
             if self.regs['r0'] != 0:
                 self.regs[self.pc] = imm
+            handled = True
+        elif op == self.opcodes.rev_opcodes['BNZ']:
+            (rx, ry, imm) = self.solveRegNames(imm)
+            reg = 'r0'
+            if ry is not None:
+                reg = ry
+            if self.regs[reg] != 0:
+                self.regs[self.pc] = self.regs[rx]
             handled = True
         elif op == self.opcodes.rev_opcodes['BE']:
             (rx, ry, imm) = self.solveRegNames(imm)
             if rx is not None and ry is not None and imm is not None:
                 if self.regs[rx] == self.regs[ry]:
-                    print "Jump %s" % (self.regs[self.pc])
                     self.regs[self.pc] += imm
-                    print "Jumped %s" % (self.regs[self.pc])
                 handled = True
         elif op == self.opcodes.rev_opcodes['BNE']:
             (rx, ry, imm) = self.solveRegNames(imm)
@@ -496,7 +512,7 @@ class RISC1:
             inst = self.fetch()
             (op, imm) = self.decode(inst)
             if verbose:
-                if (op in self.opcodes.opcodes and self.opcodes.opcodes[op][-1] == 'i') or op == self.opcodes.rev_opcodes['B']:
+                if (op in self.opcodes.opcodes and self.opcodes.opcodes[op][-1] == 'i'):
                     print ("[PC %4s] %3s %s %s" % (self.regs[self.pc], op, self.opcodes.opcodes[op], imm))
                 else:
                     print ("[PC %4s] %3s %s %s" % (self.regs[self.pc], op, self.opcodes.opcodes[op], self.solveRegNames(imm)))
@@ -664,17 +680,23 @@ rx, ry, imm coding = iiyyxx
    rx + imm = Address of interrupt vector or 0 == no change
    ry = Interrupt flags (enable/disable/etc)
 
-0x30 B imm
+0x30 Bi imm
   Branch to location imm
-0x31 BZ imm
+0x31 B rx
+  Branch to location defined by rx
+0x32 BZi imm
   Branch to location imm, if r0 is zero
-0x32 BNZ imm
+0x33 BZ rx, ry
+  Branch to location defined by rx, if ry/r0 is zero
+0x34 BNZi imm
   Branch to location imm, if r0 is not zero
-0x33 BE rx, ry, imm
+0x35 BNZ rx, ry
+  Branch to location defined by rx, if ry/r0 is not zero
+0x36 BE rx, ry, imm
   Increase PC by imm if value rx == ry
-0x34 BNE rx, ry, imm
+0x37 BNE rx, ry, imm
   Increase PC by imm if value rx != ry
-0x35 BLE rx, ry, imm
+0x38 BLE rx, ry, imm
   Branch long if ry is zero, target address = rx + imm
 0x3A BSUBi imm
   Branch to subprocess defined by imm, save return address to return register

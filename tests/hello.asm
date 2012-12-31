@@ -15,7 +15,7 @@ loop:
 	# If value of r2 is not value of r9, skip next
 	BNE r2, r9, 4
 	# In case r2 == r9, get out (r9 value is zero, means null terminating)
-	B out
+	Bi out
 
 	# Store value of r2 to location of r10
 	# Means we're writing it to video memory
@@ -25,7 +25,7 @@ loop:
 	# Increase video mem address
 	ADD r10, 0, 1
 	# Loop
-	B loop
+	Bi loop
 
 out:
 	# This sets video memory to be 3 lines height
