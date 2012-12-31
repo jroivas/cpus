@@ -1,6 +1,6 @@
 import math
 
-class Mem:
+class Mem(object):
     """ Contains main memory for CPU
     """
     
