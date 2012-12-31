@@ -2,14 +2,14 @@
 all:
 	echo "Usage:"
 	echo "  make unittests  - Make unit tests"
-	echo "  make test       - Make test apps"
+	echo "  make testapps    - Make test apps"
 	echo "  make runtests   - Make test apps and run them"
 
 unittests:
 	@bash ./tools/unittest.sh
 	
-test:
+testapps:
 	@bash ./tools/assemble.sh
 
-runtests: test
+runtests: testapps
 	@bash ./tools/batchrun.sh

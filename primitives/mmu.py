@@ -1,4 +1,8 @@
 from primitives import Mem
+import sys
+
+if sys.version >= '3':
+    xrange = range
 
 class MMU():
     def __init__(self, mem, size=0):
@@ -8,6 +12,9 @@ class MMU():
         self._mem = mem
         self._wordsize = 4
         self._table = []
+
+    def isEnabled(self):
+        return self._enabled
 
     def enable(self):
         """ Enables MMU
@@ -186,8 +193,12 @@ class MMU():
         73728
         >>> u.virtToPhys(0x18010) == (0x2000 + 0x10000 + 0x10)
         True
-        >>> u.virtToPhys(0x19000) == (0x2000 + 0x10000 + 0x1000)
+        >>> u.virtToPhys(0x18FFF) == (0x2000 + 0x10000 + 0xFFF)
         True
+        >>> u.virtToPhys(0x19000) #doctest: +ELLIPSIS
+        Traceback (most recent call last):
+        ...
+        IndexError: No page mapped at virtual: 00019000
         >>> u.virtToPhys(0x19001) #doctest: +ELLIPSIS
         Traceback (most recent call last):
         ...
@@ -205,10 +216,66 @@ class MMU():
         """
         for item in self._table:
             (a, b, c) = self.getRange(item)
-            if a <= pos and pos <= b:
+            if a <= pos and pos < b:
                 index = (pos - a)
                 phys = c + index
                 return phys
+        raise IndexError('No page mapped at virtual: %.8X' % (pos))
+
+    def getPageFlags(self, pos):
+        """ Get flags at position
+
+        >>> from primitives import Mem
+        >>> m = Mem(1024*100)
+        >>> u = MMU(m)
+        >>> # Page, virtual start at 24, size 4k (0x1000)
+        >>> m.setData(10, 0x00006100, 4)
+        >>> # Subtable, starts at phys 4k (0x1000)
+        >>> m.setData(14, 0x00001101, 4)
+        >>> # Page, virtual start at 32k, size 64k (0x10000)
+        >>> m.setData(18, 0x00008110, 4)
+        >>> # Page, virtual start at 96, size 4k (0x1000)
+        >>> m.setData(22, 0x00018100, 4)
+        >>> # Page at virtual 8k, size 4k (0x1000)
+        >>> m.setData(0x1000, 0x00002100, 4)
+        >>> # Page at virtual 1126k, size 1M 
+        >>> m.setData(0x1004, 0x00113120, 4)
+        >>> tmp = u.initialize(10, 4)
+        >>> u.enable()
+        >>> u.getPageFlags(0x8000)
+        execute=False,ok=True,size=64,size1=True,size2=False,subtable=False,userspace=False,write=False
+        >>> u.getPageFlags(0x8001)
+        execute=False,ok=True,size=64,size1=True,size2=False,subtable=False,userspace=False,write=False
+        >>> u.getPageFlags(0x18000)
+        execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False
+        >>> u.getPageFlags(0x18010)
+        execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False
+        >>> u.getPageFlags(0x19000)
+        Traceback (most recent call last):
+        ...
+        IndexError: No page mapped at virtual: 00019000
+        >>> u.getPageFlags(0x19001) #doctest: +ELLIPSIS
+        Traceback (most recent call last):
+        ...
+        IndexError: No page mapped at virtual: 00019001
+        >>> u.getPageFlags(0x1A000) #doctest: +ELLIPSIS
+        Traceback (most recent call last):
+        ...
+        IndexError: No page mapped at virtual: 0001A000
+        >>> u.getPageFlags(0x18fff)
+        execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False
+        >>> u.getPageFlags(0) #doctest: +ELLIPSIS
+        Traceback (most recent call last):
+        ...
+        IndexError: No page mapped at virtual: 00000000
+        """
+        if not self._enabled:
+            return None
+
+        for item in self._table:
+            (a, b, c) = self.getRange(item)
+            if a <= pos and pos < b:
+                return item[1]
         raise IndexError('No page mapped at virtual: %.8X' % (pos))
 
     def setData(self, pos, data, size=4):

@@ -368,13 +368,17 @@ class Assembly:
                 pass
             else:
                 newpars = []
+                i = 0
                 for reg in pars: 
                     if reg[0] == 'r':
                         reg = self.getRegister(reg)
                         newpars.append(reg)
                     else:
+                        if item['cmd'][-1].upper() != 'I' and reg != '0' and reg != 0 and i < 2 and reg[0] != 'r':
+                            raise ValueError('Expected register, got: %s %s' % (reg, item))
                         imm = self.getImmediate(reg, labels)
                         newpars.append(imm)
+                    i += 1
                 item['params'] = newpars
         return stub
 

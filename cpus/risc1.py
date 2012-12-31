@@ -3,12 +3,15 @@ from primitives import IntVec
 from primitives import Stack
 from primitives import MMU
 import time
+import sys
+
+if sys.version >= '3':
+    xrange = range
 
 class RISC1:
     wordsize = 4
 
-    def __init__(self, code, mem, alu):
-        self.code = code
+    def __init__(self, mem, alu):
         self.mem = mem
         self.mmu = MMU(mem)
         self.alu = alu
@@ -28,11 +31,15 @@ class RISC1:
         # Return register
         self.retreg = 'r44'
         self.intvec = IntVec()
-        self.intvec.read(self.code, 0, self.wordsize)
+        self.intvec.read(self.mmu, 0, self.wordsize)
 
     def fetch(self):
         self.cycle += 1
-        inst = self.code.getData(self.regs[self.pc], self.wordsize)
+        pos = self.regs[self.pc]
+        flags = self.mmu.getPageFlags(pos)
+        if self.mmu.isEnabled() and not flags['execute']:
+            raise IndexError('Page is not executable: %.8X' % (pos))
+        inst = self.mmu.getData(pos, self.wordsize)
         self.regs[self.pc] += self.wordsize
         return inst
 
@@ -91,7 +98,7 @@ class RISC1:
         for num in xrange(255):
             val = self.regs['r%s' % (num)]
             if val != 0:
-                print ("%4s: %.8x" % ('r%x' % num, val))
+                print ("%4s: %.8X" % ('r%X' % num, val))
 
     def handleLoadStoreXBits(self, loadorstore, imm, size):
         (rx, ry, imm) = self.solveRegNames(imm)
@@ -100,20 +107,12 @@ class RISC1:
         if loadorstore == 'load':
             if ry is not None:
                 rimm = self.regs[ry]
-            #if size == 8:
-            #    self.regs[rx] = self.load(rimm, 4)
-            #    self.regs[ry] = self.load(rimm + 4, 4)
-            #else:
             self.regs[rx] = self.load(rimm, size)
         elif loadorstore == 'store':
             if ry is None:
                 ry = 'r0'
             if rx is not None:
                 rimm = self.regs[rx]
-            #if size == 8:
-            #    self.store(rimm, self.regs[ry], 4)
-            #    self.store(rimm + 4, self.regs['r0'], 4)
-            #else:
             self.store(rimm, self.regs[ry], size)
 
     def handleLoad(self, imm, size):
@@ -151,9 +150,6 @@ class RISC1:
         elif op == self.opcodes.rev_opcodes['LOAD32']:
             self.handleLoad(imm, 4)
             handled = True
-        #elif op == self.opcodes.rev_opcodes['LOAD64']:
-        #    self.handleLoad(imm, 8)
-        #    handled = True
         elif op == self.opcodes.rev_opcodes['STORE8']:
             self.handleStore(imm, 1)
             handled = True
@@ -163,9 +159,6 @@ class RISC1:
         elif op == self.opcodes.rev_opcodes['STORE32']:
             self.handleStore(imm, 4)
             handled = True
-        #elif op == self.opcodes.rev_opcodes['STORE64']:
-        #    self.handleStore(imm, 8)
-        #    handled = True
         elif op == self.opcodes.rev_opcodes['LOADADDRi']:
             self.regs['r0'] = imm
             handled = True

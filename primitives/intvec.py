@@ -1,3 +1,7 @@
+import sys
+
+if sys.version >= '3':
+    xrange = range
 
 class IntVec:
     def __init__(self, intcnt=4):

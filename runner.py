@@ -6,30 +6,43 @@ from primitives import Mem
 from primitives import ALU
 from primitives import Clock
 from cpus import RISC1
-from io import Terminal
+from sysio import Terminal
 
-def load(fname):
+if sys.version >= '3':
+    xrange = range
+
+def fileLoad(fname):
     f = open(fname, 'rb')
     header_size = 12
     header = f.read(header_size)
-    if header[:4] != 'RE01':
+    if header[:4] != b'RE01':
         f.close()
         return None
+
     tmp = header[4:8]
     datapos = 0
     for i in reversed(tmp):
-        datapos |= ord(i)
+        if sys.version < '3':
+            datapos |= ord(i)
+        else:
+            datapos |= i
         datapos <<= 8
     datapos >>= 8
+
     tmp = header[8:]
     basepos = 0
     for i in reversed(tmp):
-        basepos |= ord(i)
+        if sys.version < '3':
+            basepos |= ord(i)
+        else:
+            basepos |= i
         basepos <<= 8
     basepos >>= 8
+
     code = f.read(datapos - header_size)
     data = f.read()
     f.close()
+
     return (code, data, basepos)
 
 def moveToMem(mem, data, i=None):
@@ -40,7 +53,7 @@ def moveToMem(mem, data, i=None):
         i += 1
 
 def main():
-    (code, data, base) = load(sys.argv[1])
+    (code, data, base) = fileLoad(sys.argv[1])
 
     mainmem = Mem(len(code) + len(data))
     moveToMem(mainmem, code)
@@ -59,10 +72,14 @@ def main():
     for i in xrange(100):
         mainmem.addSpecial(0x8010 + i, term.getData, term.setData)
 
-    cpu = RISC1(mainmem, mainmem, ALU())
+    cpu = RISC1(mainmem, ALU())
     clock = Clock(hz=1000, callfunc=cpu.raiseInterrupt, params=1)
     clock.start()
-    cpu.start()
+    try:
+        cpu.start()
+    except:
+        clock.stop()
+        raise
     clock.stop()
 
 if __name__ == "__main__":

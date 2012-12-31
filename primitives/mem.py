@@ -234,8 +234,7 @@ class Mem(object):
             if self._autosize:
                 self.enlarge(pos + 1)
             else:
-                print "%s" % pos, self._specials.keys()
-                #return
+                #print ("%s" % pos, self._specials.keys())
                 raise IndexError("Given memory position is invalid: %s, max size: %s" % (pos, self._size))
         if pos < 0:
             raise IndexError("Memory position needs to be positive number, got: %s" % (pos))

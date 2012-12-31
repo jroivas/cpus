@@ -1,4 +1,3 @@
-
 class Terminal:
     def __init__(self):
         self.screen = []
@@ -19,7 +18,6 @@ class Terminal:
             self.screen = [0]*(newsize)
 
     def setControl(self, pos, data):
-        #print "%x %x" % (pos, data)
         if data & 0xFF == 0xAA:
             self.control = 'width'
             self.width = 0
@@ -55,12 +53,12 @@ class Terminal:
         return self.screen
 
     def printScreen(self):
-        print "==== screen ===="
+        print ('==== Terminal ====')
         tmp = self.screen
         while tmp:
             line = tmp[:self.width]
             tmp = tmp[self.width:]
             s = ''.join([chr(i) for i in line])
             s = s.replace('\x00',' ')
-            print s
-        print "================"
+            print (s)
+        print ('==================')

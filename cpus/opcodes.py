@@ -69,5 +69,5 @@ class Opcodes:
         }
 
     def __init__(self):
-        self.rev_opcodes = {v:k for k, v in self.opcodes.iteritems()}
-        self.rev_upper_opcodes = {v.upper():k for k, v in self.opcodes.iteritems()}
+        self.rev_opcodes = {v:k for k, v in self.opcodes.items()}
+        self.rev_upper_opcodes = {v.upper():k for k, v in self.opcodes.items()}
