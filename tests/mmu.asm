@@ -8,7 +8,7 @@
 	MAP r0, r1, 1
 
 	# Load item in virtual mem mode
-	# Data is starting from 0x8000 so need to adapt
+	# Data is starting from virtual 0x8000 so need to adapt
 	LOADADDRi 0x8008
 	LOAD32 r2, r0
 
@@ -25,5 +25,5 @@
 .data
 table:
 	dd 0x00000102 # first 0x1000 indentity mapped, executable
-	dd 0x00008100 # From 0x8000 virt, 0x2000 phys data
+	dd 0x00008100 # From 0x8000 virt, 0x1000 phys data
 item: dd 0x123456
