@@ -3,6 +3,7 @@ import math
 class Mem(object):
     """ Contains main memory for CPU
     """
+    _pagesize = 0x1000
     
     def __init__(self, size=0):
         """ Initialize the memory
@@ -18,23 +19,16 @@ class Mem(object):
         self.reset()
         self._specials = {}
 
-    def append(self, mem):
-        """ Append another memory instance to this one
-        """
-        #self._size += mem.getSize()
-        self._size += mem._size
-        self._data += mem._data
-
     def getSize(self):
         """ Get memory size
         """
-        return self._size, len(self._data)
+        return self._size
 
     def reset(self):
         """ Reset memory
         Initializes memory to given size
         """
-        self._data = bytearray(self._size)
+        self._datas = {}
 
     def addSpecial(self, mem, handler_get, handler_set):
         """ Add special handler for certain memory location
@@ -118,11 +112,7 @@ class Mem(object):
 
         @param size New memory size
         """
-        if size < self._size:
-            self._data = self._data[:size]
         self._size = size
-        while len(self._data) < self._size:
-            self._data.append(0)
 
     def setData(self, pos, data, size=4):
         """ Set data, can be sized as 1..size bytes
@@ -164,6 +154,58 @@ class Mem(object):
             if size > 0:
                 res <<= 8
         return res
+
+    def getBlock(self, pos, size=1):
+        """ Get memory blocks at given position and given size
+        May return multiple blocks if size is big enough or boundaries crossed
+
+        >>> m = Mem(0x1000*5+2)
+        >>> m.setData(0xffe, 0x12345678)
+        >>> len(m.getBlock(0xffe, 4))
+        2
+        >>> len(m.getBlock(0xff0, 4))
+        1
+        >>> len(m.getBlock(0x1010, 4))
+        1
+        >>> len(m.getBlock(0xffe, 0x1020))
+        3
+        """
+        res = []
+        start = pos /  self._pagesize
+        items = (pos + size) / self._pagesize
+        mod = (pos + size) % self._pagesize
+        if start == 0:
+            items += 1
+        pos = start
+        for i in xrange(items):
+            try:
+                res.append((pos, self._datas[pos]))
+            except:
+                res.append((pos, None))
+            pos += 1
+        return res
+
+    def getPage(self, pos, create=False):
+        """ Get page index
+
+        >>> m = Mem(0x1000*3)
+        >>> m.getPage(100)
+        (None, None)
+        >>> (page, index) = m.getPage(100, create=True)
+        >>> index
+        100
+        >>> (page, index) = m.getPage(0x1002, create=True)
+        >>> index
+        2
+        """
+        index = (pos / self._pagesize)
+        if not index in self._datas:
+            if not create:
+                return (None, None)
+            self._datas[index] = bytearray(self._pagesize)
+        subindex = (pos) - (index * self._pagesize)
+
+        return (self._datas[index], subindex)
 
     def setRaw(self, pos, data):
         """ Set raw memory value at position to given data
@@ -244,7 +286,12 @@ class Mem(object):
             if hset is not None:
                 return hset(pos, data)
             return
-        self._data[pos] = data
+
+        (page, subindex) = self.getPage(pos, create=True)
+        try:
+            page[subindex] = data
+        except:
+            print "%x, %x" % (pos, subindex)
 
     def getRaw(self, pos):
         """ Get data from specified position
@@ -267,4 +314,8 @@ class Mem(object):
             if hget is not None:
                 return hget(pos)
             return 0
-        return self._data[pos]
+
+        (page, subindex) = self.getPage(pos)
+        if page == None:
+            return 0
+        return page[subindex]

@@ -1,6 +1,9 @@
-from primitives import Mem
-import sys
+try:
+    from primitives import Mem
+except ImportError:
+    from mem import Mem
 
+import sys
 if sys.version >= '3':
     xrange = range
 
@@ -30,13 +33,13 @@ class MMU():
         """ Get page entries and parse them, handle recursively
 
         >>> from primitives import Mem
-        >>> m = Mem(1024*100)
+        >>> m = Mem(1024*1024)
         >>> m.setData(0, 0x00000100, 4)
         >>> m.setData(4, 0x00001100, 4)
         >>> m.setData(8, 0x00002100, 4)
         >>> m.setData(12, 0x00003100, 4)
         >>> u = MMU(m)
-        >>> entries = [(4096, MMU.Flags(solved={'execute': False, 'ok': True, 'size1': True, 'size2': False, 'write': False, 'subtable': True, 'userspace': False, 'size': 64}), 0),
+        >>> entries = [(0, MMU.Flags(solved={'execute': False, 'ok': True, 'size1': False, 'size2': False, 'write': False, 'subtable': True, 'userspace': False, 'size': 4*1024}), 0),
         ... (32768, MMU.Flags(solved={'execute': False, 'ok': True, 'size1': True, 'size2': False, 'write': False, 'subtable': False, 'userspace': False, 'size': 64}), 65536),
         ... (0, MMU.Flags(solved={'execute': False, 'ok': True, 'size1': False, 'size2': False, 'write': False, 'subtable': False, 'userspace': False, 'size': 4}), 131072)]
         >>> u.getEntries(entries)
@@ -49,15 +52,12 @@ class MMU():
             if flags['subtable']:
                 size = flags['size'] * 1024 / 4
                 if flags['ok']:
-                    #tmp = self.readTable(addr, size, startpos)
-                    tmp = self.readTable(pos, size, pos)
+                    tmp = self.readTable(addr, size, pos)
                     entries = self.getEntries(tmp, startpos)
                     subs += entries
                     startpos += flags['size'] * 1024
             else:
-                #if addr > 0 and flags['size'] > 0:
                 if flags['ok']:
-                    #subs.append((addr, flags, startpos + pos))
                     subs.append((addr, flags, pos))
         return subs
 
@@ -66,10 +66,10 @@ class MMU():
         Does recursive parsing
 
         >>> from primitives import Mem
-        >>> m = Mem(1024*100)
+        >>> m = Mem(1024*1024*10)
         >>> u = MMU(m)
         >>> # Subtable, starts at phys 4k
-        >>> m.setData(10, 0x00001111, 4)
+        >>> m.setData(22, 0x00001111, 4)
         >>> # Page, virtual start at 32k, size 64k
         >>> m.setData(14, 0x00008110, 4)
         >>> # Page, virtual start at 98k, size 4k
@@ -80,12 +80,16 @@ class MMU():
         >>> m.setData(0x1000, 0x00002100, 4)
         >>> # Page at 12k, size 1M 
         >>> m.setData(0x1004, 0x00003120, 4)
-        >>> u.initialize(10, 3)
-        [(8192, execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 4194304), (12288, execute=False,ok=True,size=1024,size1=False,size2=True,subtable=False,userspace=False,write=False, 4198400), (32768, execute=False,ok=True,size=64,size1=True,size2=False,subtable=False,userspace=False,write=False, 65536), (98304, execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 131072)]
+        >>> u.initialize(14, 3)
+        [(32768, execute=False,ok=True,size=64,size1=True,size2=False,subtable=False,userspace=False,write=False, 0), (98304, execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 65536), (8192, execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 69632), (12288, execute=False,ok=True,size=1024,size1=False,size2=True,subtable=False,userspace=False,write=False, 73728)]
         """
         entries = self.readTable(tablepos, tablesize)
         self._table = self.getEntries(entries)
         return self._table
+
+    def diffTime(self, a, b):
+        d = a - b
+        print (d.seconds*1000*1000 + d.microseconds)
 
     def readTable(self, tablepos, tablesize, pos=None):
         """ Reads table from memory
@@ -104,30 +108,86 @@ class MMU():
         4096
         >>> tmp[1][0]
         32768
-        >>> tmp[2][0]
-        0
         >>> tmp[0][1]
-        execute=False,ok=True,size=64,size1=True,size2=False,subtable=True,userspace=False,write=False
+        execute=False,ok=True,size=65536,size1=True,size2=False,subtable=True,userspace=False,write=False
         >>> tmp[1][1]
         execute=False,ok=True,size=64,size1=True,size2=False,subtable=False,userspace=False,write=False
-        >>> tmp[2][1]
-        execute=False,ok=False,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False
         >>> tmp[0]
-        (4096, execute=False,ok=True,size=64,size1=True,size2=False,subtable=True,userspace=False,write=False, 0)
+        (4096, execute=False,ok=True,size=65536,size1=True,size2=False,subtable=True,userspace=False,write=False, 0)
         >>> tmp[1]
-        (32768, execute=False,ok=True,size=64,size1=True,size2=False,subtable=False,userspace=False,write=False, 65536)
-        >>> tmp[2]
-        (0, execute=False,ok=False,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 131072)
+        (32768, execute=False,ok=True,size=64,size1=True,size2=False,subtable=False,userspace=False,write=False, 67108864)
         """
+        import datetime
         datas = []
         if pos is None:
             pos = 0
+
+        virtpos = tablepos
+        cnt = 0
+
+        # Optimized reading in blocks instead of one byte at time
+        block = self._mem.getBlock(tablepos, tablesize * 4)
+        oldtmp = 0
+        items = 0
+        preindex = 0
+        for (bpos, data) in block:
+            if data is None:
+                continue
+
+            if preindex > 0:
+                # Do we have old data from previous block?
+                if preindex == 1:
+                    oldtmp += (data[0] << 24)
+                if preindex == 2:
+                    oldtmp += (data[0] << 16) + (data[1] << 24)
+                if preindex == 3:
+                    oldtmp += (data[0] << 8) + (data[1] << 16) + (data[2] << 24)
+
+                (ok, pos, res) = self.readEntry(oldtmp, pos)
+                if ok:
+                    datas.append(res)
+                tablepos = preindex
+
+            datalen = len(data)
+            l = datalen / 4 - 1
+            index = tablepos % 0x1000
+            for item in xrange(l):
+                tmp = data[index] + (data[index+1] << 8) + (data[index+2] << 16) + (data[index+3] << 24)
+                (ok, pos, res) = self.readEntry(tmp, pos)
+                if ok:
+                    datas.append(res)
+                index += 4
+                items += 4
+                if index > datalen - 4:
+                    miss = datalen - index
+                    preindex = 0
+
+                    # Check if we didn't read all the data...
+                    if miss > 0:
+                        oldtmp = data[index]
+                        if miss > 1:
+                            oldtmp += (data[index+1] << 8)
+                        if miss > 2:
+                            oldtmp += (data[index+2] << 16)
+                        preindex = 4 - miss
+                    break
+                if items > (tablesize + tablepos):
+                    break
+        return datas
+
+        """
         for index in xrange(tablesize):
-            tmp = self._mem.getData(tablepos + index * self._wordsize, self._wordsize)
-            (pos, res) = self.readEntry(tmp, pos)
-            datas.append(res)
+            tmp = self._mem.getData(virtpos, self._wordsize)
+            virtpos += self._wordsize
+            if tmp > 0:
+                print tmp
+                cnt += 1
+                (ok, pos, res) = self.readEntry(tmp, pos)
+                if ok:
+                    datas.append(res)
 
         return datas
+        """
 
     def readEntry(self, data, pos=0):
         """ Read entry from one page table item data
@@ -135,24 +195,31 @@ class MMU():
         >>> m = Mem()
         >>> u = MMU(m)
         >>> u.readEntry(0x00000000)
-        (4096, (0, execute=False,ok=False,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 0))
+        (False, 0, (0, execute=False,ok=False,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 0))
         >>> u.readEntry(0x00001000)
-        (4096, (4096, execute=False,ok=False,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 0))
+        (True, 4096, (4096, execute=False,ok=False,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 0))
         >>> u.readEntry(0x00001111)
-        (65536, (4096, execute=False,ok=True,size=64,size1=True,size2=False,subtable=True,userspace=False,write=False, 0))
+        (True, 67108864, (4096, execute=False,ok=True,size=65536,size1=True,size2=False,subtable=True,userspace=False,write=False, 0))
         >>> u.readEntry(0x00001022)
-        (1048576, (4096, execute=True,ok=False,size=1024,size1=False,size2=True,subtable=False,userspace=False,write=False, 0))
+        (True, 1048576, (4096, execute=True,ok=False,size=1024,size1=False,size2=True,subtable=False,userspace=False,write=False, 0))
         >>> u.readEntry(0x00002FFF)
-        (67108864, (8192, execute=True,ok=True,size=65536,size1=True,size2=True,subtable=True,userspace=True,write=True, 0))
+        (True, 68719476736, (8192, execute=True,ok=True,size=67108864,size1=True,size2=True,subtable=True,userspace=True,write=True, 0))
         >>> u.readEntry(0xFFFFFFFF)
-        (67108864, (4294963200, execute=True,ok=True,size=65536,size1=True,size2=True,subtable=True,userspace=True,write=True, 0))
+        (True, 68719476736, (4294963200, execute=True,ok=True,size=67108864,size1=True,size2=True,subtable=True,userspace=True,write=True, 0))
         >>> u.readEntry(0)
-        (4096, (0, execute=False,ok=False,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 0))
+        (False, 0, (0, execute=False,ok=False,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 0))
         """
-        flags = MMU.Flags(data & 0xFFF)
-        vaddr = data & 0xFFFFF000
+        if data > 0:
+            flags = MMU.Flags(data & 0xFFF)
+            vaddr = data & 0xFFFFF000
+            ok = True
+        else:
+            vaddr = 0
+            flags = MMU.Flags(data & 0xFFF)
+            ok = False
+            return (ok, pos, (vaddr, flags, pos))
 
-        return (pos + flags['size'] * 1024, (vaddr, flags, pos))
+        return (ok, pos + flags['size'] * 1024, (vaddr, flags, pos))
 
     def getRange(self, item):
         addr = item[0]
@@ -165,35 +232,36 @@ class MMU():
         """ Converts virtual memory location to physical
 
         >>> from primitives import Mem
-        >>> m = Mem(1024*100)
+        >>> m = Mem(1024*1024*10)
         >>> u = MMU(m)
         >>> # Page, virtual start at 24, size 4k (0x1000)
         >>> m.setData(10, 0x00006100, 4)
-        >>> # Subtable, starts at phys 4k (0x1000)
-        >>> m.setData(14, 0x00001101, 4)
+        >>> # Page, virtual start at 96k, size 4k (0x1000)
+        >>> m.setData(14, 0x00018100, 4)
         >>> # Page, virtual start at 32k, size 64k (0x10000)
         >>> m.setData(18, 0x00008110, 4)
-        >>> # Page, virtual start at 96, size 4k (0x1000)
-        >>> m.setData(22, 0x00018100, 4)
-        >>> # Page at virtual 8k, size 4k (0x1000)
+        >>> # Subtable, starts at phys 4k, size 4M
+        >>> m.setData(22, 0x00001101, 4)
+        >>> # Page at virtual at 8k, size 4k (0x1000)
         >>> m.setData(0x1000, 0x00002100, 4)
-        >>> # Page at virtual 1126k, size 1M 
+        >>> # Page at virtual at 1126k, size 1M 
         >>> m.setData(0x1004, 0x00113120, 4)
-        >>> u.initialize(10, 4)
-        [(24576, execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 0), (8192, execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 4096), (1126400, execute=False,ok=True,size=1024,size1=False,size2=True,subtable=False,userspace=False,write=False, 8192), (32768, execute=False,ok=True,size=64,size1=True,size2=False,subtable=False,userspace=False,write=False, 8192), (98304, execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 73728)]
+        >>> tmp = u.initialize(10, 5)
         >>> u.virtToPhys(0x8000) == (0x2000)
         True
         >>> u.virtToPhys(0x8000)
         8192
         >>> u.virtToPhys(0x8001)
         8193
-        >>> u.virtToPhys(0x18000) == (0x2000 + 0x10000)
-        True
-        >>> u.virtToPhys(0x18000)
+        >>> u.virtToPhys(0x2000)
         73728
-        >>> u.virtToPhys(0x18010) == (0x2000 + 0x10000 + 0x10)
+        >>> u.virtToPhys(0x2000) == (0x2000 + 0x10000)
         True
-        >>> u.virtToPhys(0x18FFF) == (0x2000 + 0x10000 + 0xFFF)
+        >>> u.virtToPhys(0x2010) == (0x2000 + 0x10000 + 0x10)
+        True
+        >>> u.virtToPhys(0x2FFF) == (0x2000 + 0x10000 + 0xFFF)
+        True
+        >>> u.virtToPhys(0x18000) == 0x1000
         True
         >>> u.virtToPhys(0x19000) #doctest: +ELLIPSIS
         Traceback (most recent call last):
@@ -207,8 +275,6 @@ class MMU():
         Traceback (most recent call last):
         ...
         IndexError: No page mapped at virtual: 0001A000
-        >>> u.virtToPhys(0x18fff) == (0x2000 + 0x10000 + 0xfff)
-        True
         >>> u.virtToPhys(0) #doctest: +ELLIPSIS
         Traceback (most recent call last):
         ...
@@ -226,7 +292,7 @@ class MMU():
         """ Get flags at position
 
         >>> from primitives import Mem
-        >>> m = Mem(1024*100)
+        >>> m = Mem(1024*1024*10)
         >>> u = MMU(m)
         >>> # Page, virtual start at 24, size 4k (0x1000)
         >>> m.setData(10, 0x00006100, 4)
@@ -282,16 +348,16 @@ class MMU():
         """ Set data, if MMU enabled, solve physical locations first
 
         >>> from primitives import Mem
-        >>> m = Mem(1024*100)
+        >>> m = Mem(1024*1024*5)
         >>> u = MMU(m)
         >>> # Page, virtual start at 24, size 4k (0x1000)
         >>> m.setData(10, 0x00006100, 4)
-        >>> # Subtable, starts at phys 4k (0x1000)
-        >>> m.setData(14, 0x00001101, 4)
+        >>> # Page, virtual start at 96, size 4k (0x1000)
+        >>> m.setData(14, 0x00018100, 4)
         >>> # Page, virtual start at 32k, size 64k (0x10000)
         >>> m.setData(18, 0x00008110, 4)
-        >>> # Page, virtual start at 96, size 4k (0x1000)
-        >>> m.setData(22, 0x00018100, 4)
+        >>> # Subtable, starts at phys 4k, size 4M (0x1000)
+        >>> m.setData(22, 0x00001101, 4)
         >>> # Page at virtual 8k, size 4k (0x1000)
         >>> m.setData(0x1000, 0x00002100, 4)
         >>> # Page at virtual 1126k, size 1M 
@@ -319,7 +385,7 @@ class MMU():
         """ Get data, if MMU enabled, solve physical location first
 
         >>> from primitives import Mem
-        >>> m = Mem(1024*100)
+        >>> m = Mem(1024*1024*10)
         >>> u = MMU(m)
         >>> # Page, virtual start at 24, size 4k (0x1000)
         >>> m.setData(10, 0x00006100, 4)
@@ -327,13 +393,14 @@ class MMU():
         >>> m.setData(14, 0x00001101, 4)
         >>> # Page, virtual start at 32k, size 64k (0x10000)
         >>> m.setData(18, 0x00008110, 4)
-        >>> # Page, virtual start at 96, size 4k (0x1000)
+        >>> # Page, virtual start at 96k, size 4k (0x1000)
         >>> m.setData(22, 0x00018100, 4)
         >>> # Page at virtual 8k, size 4k (0x1000)
         >>> m.setData(0x1000, 0x00002100, 4)
         >>> # Page at virtual 1126k, size 1M 
         >>> m.setData(0x1004, 0x00113120, 4)
-        >>> tmp = u.initialize(10, 4)
+        >>> u.initialize(10, 4)
+        [(24576, execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 0), (8192, execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 4096), (1126400, execute=False,ok=True,size=1024,size1=False,size2=True,subtable=False,userspace=False,write=False, 8192), (32768, execute=False,ok=True,size=64,size1=True,size2=False,subtable=False,userspace=False,write=False, 4198400), (98304, execute=False,ok=True,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False, 4263936)]
         >>> # Paging is disabled, set data to phys 0x8000
         >>> u.setData(0x8000, 56, 1)
         >>> # Paging is disabled, set data to phys 0x100
@@ -418,7 +485,7 @@ class MMU():
             >>> f = MMU.Flags()
             >>> r = f.solveFlags(0x1)
             >>> f
-            execute=False,ok=False,size=4,size1=False,size2=False,subtable=True,userspace=False,write=False
+            execute=False,ok=False,size=4096,size1=False,size2=False,subtable=True,userspace=False,write=False
             >>> r = f.solveFlags(0x2)
             >>> f
             execute=True,ok=False,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False
@@ -442,10 +509,10 @@ class MMU():
             execute=False,ok=False,size=4,size1=False,size2=False,subtable=False,userspace=False,write=False
             >>> r = f.solveFlags(0xFF)
             >>> f
-            execute=True,ok=False,size=65536,size1=True,size2=True,subtable=True,userspace=True,write=True
+            execute=True,ok=False,size=67108864,size1=True,size2=True,subtable=True,userspace=True,write=True
             >>> r = f.solveFlags(0x1FF)
             >>> f
-            execute=True,ok=True,size=65536,size1=True,size2=True,subtable=True,userspace=True,write=True
+            execute=True,ok=True,size=67108864,size1=True,size2=True,subtable=True,userspace=True,write=True
             """
             data = {
                 'subtable': False,
@@ -457,6 +524,7 @@ class MMU():
                 'size2': False,
                 'ok': False,
                 }
+                #'size3': False,
             if flags & 0x1 == 0x1:
                 data['subtable'] = True
             if flags & 0x2 == 0x2:
@@ -481,6 +549,9 @@ class MMU():
                 data['size'] = 1024
             elif data['size1'] and data['size2']:
                 data['size'] = 1024 * 64
+            # For subtables multiply by 1024
+            if data['subtable']:
+                data['size'] *= 1024
 
             self._data = data
             return data
@@ -490,7 +561,7 @@ class MMU():
 
             >>> f = MMU.Flags(0x1F)
             >>> f.isSet('size')
-            64
+            65536
             >>> f.isSet('size1')
             True
             >>> f.isSet('size2')
@@ -530,4 +601,9 @@ class MMU():
 MMU
 
 Initial table
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.run_docstring_examples(MMU.initialize, globals())
 """
