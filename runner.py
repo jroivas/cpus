@@ -57,9 +57,7 @@ def main():
 
     mainmem = Mem(len(code) + len(data))
     moveToMem(mainmem, code)
-    if base > 0 and len(code) < base:
-        tmp = Mem(base - len(code))
-        mainmem.append(tmp)
+    mainmem.enlarge(base - len(code) + mainmem.getSize())
     moveToMem(mainmem, data, base)
 
     term = Terminal()
