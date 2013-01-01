@@ -1,4 +1,7 @@
 import math
+import sys
+if sys.version >= '3':
+    xrange = range
 
 class Mem(object):
     """ Contains main memory for CPU
@@ -171,8 +174,8 @@ class Mem(object):
         3
         """
         res = []
-        start = pos /  self._pagesize
-        items = (pos + size) / self._pagesize
+        start = int(pos /  self._pagesize)
+        items = int((pos + size) / self._pagesize)
         mod = (pos + size) % self._pagesize
         if start == 0:
             items += 1
@@ -198,7 +201,7 @@ class Mem(object):
         >>> index
         2
         """
-        index = (pos / self._pagesize)
+        index = int(pos / self._pagesize)
         if not index in self._datas:
             if not create:
                 return (None, None)
@@ -288,10 +291,7 @@ class Mem(object):
             return
 
         (page, subindex) = self.getPage(pos, create=True)
-        try:
-            page[subindex] = data
-        except:
-            print "%x, %x" % (pos, subindex)
+        page[subindex] = data
 
     def getRaw(self, pos):
         """ Get data from specified position

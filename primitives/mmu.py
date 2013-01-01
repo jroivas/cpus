@@ -149,7 +149,7 @@ class MMU():
                 tablepos = preindex
 
             datalen = len(data)
-            l = datalen / 4 - 1
+            l = int(datalen / 4 - 1)
             index = tablepos % 0x1000
             for item in xrange(l):
                 tmp = data[index] + (data[index+1] << 8) + (data[index+2] << 16) + (data[index+3] << 24)
