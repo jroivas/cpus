@@ -271,7 +271,7 @@ class RISC1:
                     target = ry
                 else:
                     target = rx
-                self.regs[target] = self.alu.b_not(rx)
+                self.regs[target] = self.alu.b_not(self.regs[rx])
                 handled = True
 
         if handled:
@@ -336,10 +336,10 @@ class RISC1:
                     self.regs[self.pc] = self.regs[rx] + im
                 handled = True
         elif op == self.opcodes.rev_opcodes['BSUBi']:
-            self.regs[self.retreg] = self.pc + self.wordsize
+            self.regs[self.retreg] = self.regs[self.pc] + self.wordsize
             self.regs[self.pc] = imm
         elif op == self.opcodes.rev_opcodes['BSUB']:
-            self.regs[self.retreg] = self.pc + self.wordsize
+            self.regs[self.retreg] = self.regs[self.pc] + self.wordsize
             (rx, ry, imm) = self.solveRegNames(imm)
             if imm is None:
                 imm = 0
