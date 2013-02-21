@@ -21,15 +21,18 @@ class RISC1:
         self.cycle = 0
         self.interrupt = []
         self.inthandler = None
-        for num in xrange(255):
+        #for num in xrange(255):
+        # 32 registers
+        self.reg_cnt = 32
+        for num in xrange(self.reg_cnt):
             self.regs['r%s' % (num)] = 0
 
         # This is register containing Program Counter
-        self.pc = 'r42'
+        self.pc = 'r30'
         # Stack register
-        self.stackreg = 'r43'
+        self.stackreg = 'r31'
         # Return register
-        self.retreg = 'r44'
+        self.retreg = 'r32'
         self.intvec = IntVec()
         self.intvec.read(self.mmu, 0, self.wordsize)
 
@@ -95,7 +98,7 @@ class RISC1:
 
     def dump(self):
         print ("PC: %s" % (self.regs[self.pc]))
-        for num in xrange(255):
+        for num in xrange(self.reg_cnt):
             val = self.regs['r%s' % (num)]
             if val != 0:
                 print ("%4s: %.8X" % ('r%X' % num, val))
@@ -562,6 +565,7 @@ rx          coding = 0000xx
 rx, ry      coding = 00yyxx
 rx, ry, imm coding = iiyyxx
 
+
 0x00 NOP
 0x01 LOAD8i imm
   Load 8 bit value from imm memory location to r0
@@ -733,5 +737,5 @@ Appendix A - HW process table
  pid       Process ID. Shoulb be 0, will be changed by START opcode
  perm      permissions flags
  PC        program counter
- r0..r255  registers
+ r0..r31  registers
 """
