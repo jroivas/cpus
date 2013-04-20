@@ -12,7 +12,10 @@ if sys.version >= '3':
     xrange = range
 
 def fileLoad(fname):
-    f = open(fname, 'rb')
+    if fname == '':
+        f = sys.stdin
+    else:
+        f = open(fname, 'rb')
     header_size = 12
     header = f.read(header_size)
     if header[:4] != b'RE01':
@@ -53,7 +56,11 @@ def moveToMem(mem, data, i=None):
         i += 1
 
 def main():
-    (code, data, base) = fileLoad(sys.argv[1])
+    if len(sys.argv) > 1:
+        fname = sys.argv[1]
+    else:
+        fname = ''
+    (code, data, base) = fileLoad(fname)
 
     mainmem = Mem(len(code) + len(data))
     moveToMem(mainmem, code)

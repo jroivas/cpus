@@ -10,7 +10,6 @@ class Clock:
         if self.hz == 0:
             self.hz = 100
         self.timer = None
-        #self.timer = Timer(100.0/self.hz, self.run)
         self.enabled = False
 
     def start(self):

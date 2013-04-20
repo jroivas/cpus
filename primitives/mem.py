@@ -92,6 +92,7 @@ class Mem(object):
         @pos Position of special memory
         """
 
+        return self._specials.get(pos, None)
         try:
             return self._specials[pos]
         except KeyError:
@@ -130,6 +131,8 @@ class Mem(object):
         >>> m.setData(8, 0x12345678)
         >>> print "%x" % m.getData(8, 4)
         12345678
+        >>> print "%x" % m.getData(8, 2)
+        5678
         """
         tmp = data
         cnt = 0
